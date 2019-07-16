@@ -34,7 +34,7 @@ std_fill_dark <- scale_fill_viridis(discrete = TRUE)
 my_purple <- viridis(5, alpha = 0.8)[1]
 my_watergreen <- viridis(5, alpha = 0.8)[3]
 my_yellow <- viridis(5, alpha = 0.8)[5]
-my_purple_light <- "#B2ABD2"
+my_purple_light <- viridis(5, alpha = 0.01)[1]
 my_watergreen_light <- viridis(5, alpha = 0.2)[3]
 my_yellow_light <- viridis(5, alpha = 0.2)[5]
 my_bad <- "#f0d9d0"
