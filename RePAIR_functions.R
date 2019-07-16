@@ -17,6 +17,7 @@ require(ggplot2)
 require(ggpubr)
 require(viridis)
 require(grid)
+library(gtable)
 
 
 # Graphics ----------------------------------------------------------------
@@ -29,14 +30,31 @@ my_theme <- theme_classic() +
 
 
 std_fill <- scale_fill_viridis(discrete = TRUE, alpha = 0.2)
+std_fill_dark <- scale_fill_viridis(discrete = TRUE)
 my_purple <- viridis(5, alpha = 0.8)[1]
 my_watergreen <- viridis(5, alpha = 0.8)[3]
 my_yellow <- viridis(5, alpha = 0.8)[5]
-
+my_purple_light <- "#B2ABD2"
+my_watergreen_light <- viridis(5, alpha = 0.2)[3]
+my_yellow_light <- viridis(5, alpha = 0.2)[5]
+my_bad <- "#f0d9d0"
+my_good <- "#d0f0da"
 # colours from package viridis
 # organization plots with ggpubr
 
 
+gtable_select <- function (x, ...) 
+{
+  matches <- c(...)
+  x$layout <- x$layout[matches, , drop = FALSE]
+  x$grobs <- x$grobs[matches]
+  x
+}
+gtable_stack <- function(g1, g2){
+  g1$grobs <- c(g1$grobs, g2$grobs)
+  g1$layout <- rbind(g1$layout, g2$layout)
+  g1
+}
 
 
 # Bayesian analysis ----------------------------------------------------------------
