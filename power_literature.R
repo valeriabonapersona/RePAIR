@@ -40,7 +40,7 @@ median(meta$power)
 pow_ach <- 
   ggplot(meta, aes(x = power, fill = TRUE)) + 
   geom_histogram(colour = "black", bins = 50) +
-  ylim(0,610) +
+  ylim(0,630) +
   xlab("Power achieved") + ylab("Number of experiments") +
   geom_vline(xintercept = median(meta$power), color = my_watergreen, 
              linetype = "dashed", size = 1.5) +
@@ -71,6 +71,7 @@ median(dat$n_t)
 
 total_n <- ggplot(dat, aes(x = n_t, fill = TRUE)) +
   geom_histogram(colour = "black", bins = 50) +
+  ylim(0,310) +
   xlab("Animals used (log scale)") + ylab("Number of publications") +
   scale_x_continuous(trans = "log10",
                      breaks = c(0,10,20,50,150,500)) +
@@ -129,22 +130,17 @@ theor_pow <-
   ylab("Number of papers") + 
   xlab("Estimated power before experiment") + 
   facet_grid(eff_size ~.) +
-  # geom_text(aes(x, y, label=lab, colour = "red"),
-  #           data=data.frame(x=0.9, y=750, 
-  #                           lab=c("0%", "1.65%", "12.5%"),
-  #                           eff_size=c("0.2 small", "0.5 medium", 
-  #                                      "0.9 large")), 
-  #           vjust=1) +
-  # geom_text(aes(x, y, label=lab, colour = "green"),
-  #           data=data.frame(x=0.4, y=750,
-  #                           lab=c("99.7%", "93.5%", "61.9%"),
-  #                           eff_size=c("0.2 small", "0.5 medium", 
-  #                                      "0.9 large")), vjust=1) +
   my_theme + 
   std_fill_dark +
+  labs(tag = "Hedge's G") +
   theme(legend.position  = "none",
         strip.background = element_rect(fill = NA),
-        strip.text = element_text(colour = "white", face = "bold"))
+        strip.text = element_text(colour = "black", face = "bold"),
+        plot.tag.position = c(1.02, 0.535), 
+        plot.tag = element_text(angle = -90, size = 10),
+        plot.margin = unit(c(0.5,1,0.5,0.5), "cm")) +
+  
+  coord_cartesian(clip = "off")
 theor_pow
 
 
@@ -157,11 +153,11 @@ theor_pow
 
 dummy <- theor_pow
 dummy$layers <- NULL
-dummy <- dummy + 
+dummy <- dummy + new_scale_fill() +
   # geom_rect(data=dat_theor, xmin=-Inf, ymin=-Inf, xmax=Inf, ymax=Inf,
   #                          aes(fill = eff_size))
-  geom_rect(data = dat_theor, xmin=-Inf, xmax=Inf, ymin=-Inf, ymax=Inf, aes(fill = facet_fill_color))
-
+  geom_rect(data = dat_theor,xmin=-Inf, xmax=Inf, ymin=-Inf, ymax=Inf, aes(fill = facet_fill_color)) +
+  scale_fill_viridis(discrete = TRUE, alpha = 0.01)
 dummy
 
 library(gtable)
@@ -184,3 +180,83 @@ grid.draw(new_strips)
 ## ideally you'd remove the old strips, for now they're just covered
 new_plot <- gtable_stack(g1, new_strips)
 grid.draw(new_plot)
+
+# svg(filename = "figures/theoretical_power.svg")
+# grid.draw(new_plot)
+# dev.off()
+
+
+# Theoretical power with prior --------------------------------------------
+sum_n_meta <- dat %>% 
+  group_by(study) %>%
+  summarize(prior_n_1 = sum(n_1),
+            prior_n_3 = sum(n_1) * 0.3)
+dat_theor <- x
+dat_theor <- data.frame(dat_theor,
+                        sum_n_meta[match(dat_theor$study,
+                                         sum_n_meta$study),
+                                   c("prior_n_1", "prior_n_3")])
+
+
+names(dat_theor)
+
+dat_theor$n_1_prior_1 <- dat_theor$n_1 + dat_theor$prior_n_1
+dat_theor$n_1_prior_3 <- dat_theor$n_1 + dat_theor$prior_n_3
+
+dat_theor <- dat_theor %>%
+  select(-c(n_t, theor_pow, prior_n_1, prior_n_3)) %>%
+  gather(key = "prior", value = "n_1_c", c(n_1, n_1_prior_1, n_1_prior_3))
+
+# theoretical power calculation with prior
+dat_theor$eff_size_num <- as.numeric(substr(dat_theor$eff_size, 
+                                            start = 1, stop = 3)) ##necessary?
+
+
+theor_power <- pwr.t2n.test(n1 = dat_theor$n_1_c,
+                            n2 = dat_theor$n_2,
+                            d  = dat_theor$eff_size,
+                            sig.level = .05)
+dat_theor$pow_prior <- theor_power$power
+
+
+# theoretical power visualization
+dat_theor %>%
+  group_by(prior, 
+           eff_size, 
+           select = pow_prior <= 0.5) %>%
+  summarize(amount = length(n_1_c)) %>%
+  spread(select, amount) %>%
+  mutate(per =  (`TRUE` / (`FALSE` + `TRUE`)) * 100) -> low_per_prior
+dat_theor %>%
+  group_by(prior, 
+           eff_size, 
+           select = pow_prior >= 0.8) %>%
+  summarize(amount = length(n_1_c)) %>%
+  spread(select, amount) %>%
+  mutate(per =  (`TRUE` / (`FALSE` + `TRUE`)) * 100) -> high_per_prior
+
+tryout <- 
+ggplot(dat_theor, aes(x = pow_prior, fill = as.factor(eff_size), alpha = factor(prior))) + 
+  geom_rect(mapping=aes(xmin=0, xmax=0.5, ymin=0, ymax=Inf),
+             fill= my_bad) +
+  geom_rect(mapping=aes(xmin=0.8, xmax=1, ymin=0, ymax=Inf),
+            fill= my_good) +
+  geom_density(colour = "black", bins = 100) +
+  ylab("Number of papers") + 
+  xlab("Estimated power before experiment") + 
+  facet_grid(eff_size ~., scale = "free") +
+  my_theme + 
+  std_fill_dark +
+  labs(tag = "Hedge's G") +
+  theme(legend.position  = "none",
+        strip.background = element_rect(fill = NA),
+        strip.text = element_text(colour = "black", face = "bold"),
+        plot.tag.position = c(1.02, 0.535), 
+        plot.tag = element_text(angle = -90, size = 10),
+        plot.margin = unit(c(0.5,1,0.5,0.5), "cm")) +
+  scale_alpha_discrete(range = c(0.2,0.5,0.8)) + 
+  coord_cartesian(clip = "off")
+
+ggarrange(
+  
+)
