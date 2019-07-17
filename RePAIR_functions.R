@@ -26,7 +26,8 @@ my_theme <- theme_classic() +
         axis.title.x = element_text(hjust = 0.95),
         axis.title.y = element_text(hjust = 0.95),
         axis.line.x = element_line(arrow = arrow(ends = "last", length = unit(0.1, "inches"))),
-        axis.line.y = element_line(arrow = arrow(ends = "last", length = unit(0.1, "inches"))))
+        axis.line.y = element_line(arrow = arrow(ends = "last", length = unit(0.1, "inches"))),
+        plot.margin = unit(c(0.5,0.5,0.5,0.5), "cm")) 
 
 
 std_fill <- scale_fill_viridis(discrete = TRUE, alpha = 0.2)
@@ -56,6 +57,22 @@ gtable_stack <- function(g1, g2){
   g1
 }
 
+
+# Power calculation-related -----------------------------------------------
+# outputs n smallest group (control)
+whats_nC <- function(delta, sd_ratio, n_ratio = 1, alt = "two.sided") {
+  
+  n_nec <- MESS::power_t_test(power = 0.8,
+                              delta = delta,
+                              ratio = n_ratio,
+                              sd = 1,
+                              sd.ratio = sd_ratio,
+                              alternative = alt,
+                              sig.level = .05,
+                              df.method = "welch")
+  n_nec$n[1]
+  
+}
 
 # Bayesian analysis ----------------------------------------------------------------
 ## Prior parmeters
@@ -90,12 +107,19 @@ find_post_par <- function(n_group, mean_group, s2_group, belief_group = 1,
   # Posterior: parameters 
   n_group_cor <- n_group * belief_group
   
-  mu1 <- ((k0/(k0 + n_group_cor)) * mu0) + ((n_group_cor/(k0 + n_group_cor)) * mean_group)
+  mu1 <- ((k0/(k0 + n_group_cor)) * mu0) + 
+    ((n_group_cor/(k0 + n_group_cor)) * mean_group)
   k1 <- k0 + n_group_cor
   v1 <- v0 + n_group_cor
   
-  sigma1_2 <- (v0*sigma0_2 + (n_group_cor - 1)*s2_group + 
-                 ((k0 * n_group_cor/(k0 + n_group_cor)) * ((mean_group - mu0)^2))) / v1
+  sigma1_2 <- 
+    (
+    
+      v0*sigma0_2 + 
+      (n_group_cor - 1) * s2_group + 
+      ((k0 * n_group_cor/(k0 + n_group_cor)) * ((mean_group - mu0)^2))
+      
+    ) / v1
   
   n1_cor <- n0_cor + n_group_cor
   
@@ -129,7 +153,10 @@ sample_post_cor <- function(n_group, mean_group, s2_group, belief = 1, n_sampled
   
   for (i in 1:n_sampled) {   
     
-    mu_post[i]    <- rnorm(n = 1, mean = mu1, sd = sqrt(sigma_post[i] / k1))   
+    mu_post[i]    <- rnorm(n = 1, 
+                           mean = mu1, 
+                           sd = sqrt(sigma_post[i] / k1)) 
+    
   } 
   
   return(mu_post)
