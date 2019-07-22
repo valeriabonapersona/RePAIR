@@ -42,14 +42,13 @@ dat$s2_e <- NA
 dat$bae_pow <- NA
 n_sim <- 10000
 for (i in c(1:nrow(dat))) {
-
+  print(i)
+  
   # Create variable for output
   contains_zero <- FALSE #how often does the 95%CI contain zero? expected 20%
   
   # Simulation loop
-  set.seed(1234) ##remove??
   for (sim in c(1:n_sim)) {
-    
     # From population to sample (from N distribution)
     ## Control
     d_c <- rnorm(n = dat[i,]$n_c, mean = dat[i,]$p_mean_c, sd = dat[i,]$p_sd_c)
@@ -64,7 +63,8 @@ for (i in c(1:nrow(dat))) {
     
     # Sampling from posterior
     ## Control
-    par_c <- find_prior_par(n_pilot = 50, mean_pilot = 0, s2_pilot = 1) # prior parameters
+    par_c <- find_prior_par(n_pilot = dat[i,]$n_prior, 
+                            mean_pilot = 0, s2_pilot = 1) # prior parameters
     
     mu_post_c <- sample_post_cor(n_group = dat[i,]$n_c, mean_group = dat[i,]$mean_c,
                                  s2_group = dat[i,]$s2_c,  
@@ -93,12 +93,11 @@ for (i in c(1:nrow(dat))) {
   
 }
 
-#write.csv(dat, file = "sim_prior.csv")
-
+write.csv(dat, file = "sim_prior.csv")
+#dat <- read.csv("sim_prior.csv")
 
 # Visualization RePAIR ----------------------------------------------------
 #dat <- read.csv("/Users/vbonape2/surfdrive/Work/PhD/nStat/n_stat_git/sim_prior_power.csv")
-dat[dat$n_prior == 5,]$n_prior <- 20
 dat$my_cat <- ifelse(dat$n_prior == 0, "No prior", "With RePAIR")
 
 top_left <- 
@@ -176,7 +175,7 @@ bottom_right <-
   ggplot(dat[dat$sd_ec_ratio == 1 & dat$hedges != "0.2"  & dat$n_prior != 0,], 
                  aes(x = n_prior, y = n_tot, colour = as.factor(hedges), 
                      fill = as.factor(hedges), shape = as.factor(hedges), alpha = bae_pow/10000)) +
-    geom_line(size = 4) + 
+  #  geom_line(size = 4) + 
     geom_point(size = 4) + 
     scale_fill_manual(values = c(my_watergreen, my_yellow)) + 
     scale_colour_manual(values = c(my_watergreen, my_yellow)) + 
@@ -210,3 +209,16 @@ RePAIR_sim <-
   
 )
 
+svg(filename = "figures/RePAIR_sim.svg")
+ggarrange(
+  
+  top_left, 
+  top_right,
+  bottom_left,
+  bottom_right,
+  
+  ncol = 2, nrow = 2, 
+  heights = c(1,2), widths = c(1,4)
+  
+)
+dev.off()
