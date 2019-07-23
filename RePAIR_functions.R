@@ -8,6 +8,8 @@ rm(list = ls())
 ## Data handling
 require(osfr)
 require(tidyverse) #should have also readxl
+library(readxl) #for xlsx
+
 
 ## Other stats
 require(pwr)
