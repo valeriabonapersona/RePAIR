@@ -22,3 +22,21 @@ dev.off()
 
 
 
+# Figure 2 ----------------------------------------------------------------
+svg(filename = "figures/RePAIR_sim.svg")
+
+  ggarrange(
+    
+    top_left, 
+    top_right,
+    bottom_left,
+    bottom_right,
+    
+    ncol = 2, nrow = 2, 
+    heights = c(1,2), widths = c(1,4)
+    
+  )
+
+dev.off()
+
+
