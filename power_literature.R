@@ -123,22 +123,42 @@ dat_theor %>%
   summarize(low_per = sum((theor_pow <= 0.5)) /nrow(dat) * 100,
             high_per = sum((theor_pow >= 0.8))/ nrow(dat) * 100) -> per_power
 
+
+# Find maximum value of density
+densMax <- dat_theor %>% 
+  group_by(eff_size) %>%
+  summarise(dens = max(density(theor_pow)[["y"]])) %>%
+  filter(dens == max(dens))
+
+# Find maximum value of bin count
+countMax <- dat_theor %>% 
+  group_by(eff_size, 
+           bins=cut(theor_pow, seq(floor(min(theor_pow)),
+                                      ceiling(max(theor_pow)), 
+                                      0.01), right=FALSE)) %>%
+  summarise(count=n()) %>% 
+  ungroup() %>% filter(count==max(count))
+
+
 theor_pow <- 
-  ggplot(dat_theor, aes(x = theor_pow, fill = as.factor(eff_size))) + 
-  geom_rect(mapping=aes(xmin=0, xmax=0.5, ymin=0, ymax=900),
+  ggplot(dat_theor, aes(x = theor_pow, fill = as.factor(eff_size), sf = countMax$count/densMax$dens)) + 
+  geom_rect(mapping=aes(xmin=0, xmax=0.5, ymin=0, ymax=Inf),
             fill= my_bad) +
-  geom_rect(mapping=aes(xmin=0.8, xmax=1, ymin=0, ymax=900),
+  geom_rect(mapping=aes(xmin=0.8, xmax=1, ymin=0, ymax=Inf),
             fill= my_good) +
-  geom_histogram(colour = "black", bins = 100) +
+ # geom_histogram(colour = "black", bins = 100) +
+  geom_density(aes(y=..density.. * sf), alpha = 0.5) +
+    
+  geom_histogram(colour="black", binwidth = 0.01) +
   ylab("Number of papers") + 
   xlab("Estimated power before experiment") + 
-  facet_grid(eff_size ~.) +
+  facet_grid(eff_size ~., scales = "free") +
   geom_text(aes(x, y, label=lab, colour = "red"),
-            data = data.frame(x = 0.9, y = 750,
+            data = data.frame(x = 0.9, y = Inf,
                               lab = paste0(round(per_power$high_per,1),"%"),
                               eff_size = all_es),vjust=1) +
   geom_text(aes(x, y, label=lab, colour = "green"),
-    data=data.frame(x=0.4, y=750,
+    data=data.frame(x=0.4, y=Inf,
                     lab = paste0(round(per_power$low_per,1),"%"),
                     eff_size = all_es),vjust=1) +
   my_theme + 
@@ -218,10 +238,6 @@ dat_theor <- dat_theor %>%
   gather(key = "prior", value = "n_1_c", c(n_1, n_1_prior_1, n_1_prior_3))
 
 # theoretical power calculation with prior
-dat_theor$eff_size_num <- as.numeric(substr(dat_theor$eff_size, 
-                                            start = 1, stop = 3)) ##necessary?
-
-
 theor_power <- pwr.t2n.test(n1 = dat_theor$n_1_c,
                             n2 = dat_theor$n_2,
                             d  = dat_theor$eff_size,
@@ -237,20 +253,20 @@ dat_theor %>%
 
 
 tryout <-
-ggplot(dat_theor, aes(x = pow_prior, fill = factor(eff_size), alpha = factor(prior))) + 
+ggplot(dat_theor, aes(x = pow_prior, fill = factor(eff_size), alpha = factor(prior), sf = countMax$count/densMax$dens)) + 
   geom_rect(mapping=aes(xmin=0, xmax=0.5, ymin=0, ymax=Inf),
             fill= my_bad) +
   geom_rect(mapping=aes(xmin=0.8, xmax=1, ymin=0, ymax=Inf),
             fill= my_good) +
-  geom_density(data = dat_theor[dat_theor$prior == "n_1",],aes(y = ..scaled..), fill = "grey") +  
+  geom_density(data = dat_theor[dat_theor$prior == "n_1",],aes(y = ..density.. * sf), fill = "grey") +  
   geom_histogram(data = dat_theor[dat_theor$prior %in% c("n_1_prior_3"),], 
                #  data = dat_theor[dat_theor$prior %in% c("n_1"),], 
                                 
-                 colour = "black", bins = 100, position = "identity", aes(y = ..ndensity..)) +
-  
+                 colour = "black", binwidth = 0.01, position = "identity") +
+
   ylab("Number of papers") + 
   xlab("Estimated power before experiment") + 
-  facet_grid(eff_size ~.) +
+  facet_grid(eff_size ~., scales = "free") +
   scale_y_continuous() +
   my_theme + 
   std_fill_dark +
