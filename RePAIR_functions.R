@@ -76,37 +76,26 @@ whats_nC <- function(delta, sd_ratio, n_ratio = 1, alt = "two.sided") {
   
 }
 
-# Bayesian analysis ----------------------------------------------------------------
-## Prior parmeters
-find_prior_par <- function(pilot_name = 01, n_pilot = 0, mean_pilot = 0, s2_pilot = 0, 
-                           belief = 1, n_sampled = 10000) {
-  
-  # Prior: parameters
-  n0_cor <- n_pilot * belief
-  mu0 <- 0 + mean_pilot
-  k0 <- 0 + n0_cor
-  v0 <- 0 + n0_cor
-  
-  if (n_pilot > 0) {
-    sigma0_2 <- 0 + (n0_cor - 1)/n0_cor * s2_pilot
-  } else {
-    sigma0_2 <- 0
-  }
-  
-  # Organize
-  #  experiment <- as.character(pilot_name)
-  prior_par <- as.data.frame(cbind(mu0, k0, v0, sigma0_2, n0_cor))
-  
-  prior_par
-  
+whats_pow <- function(n_low, n_ratio) {
+  x <- MESS::power_t_test(n = n_low,
+                          delta = 0.4,
+                          ratio = n_ratio,
+                          sd = 1,
+                          sd.ratio = 1,
+                          alternative = "two.sided",
+                          sig.level = .05,
+                          df.method = "welch")
+  return(x$power)
 }
 
 
-## Posterior parameters
-find_post_par <- function(n_group, mean_group, s2_group, belief_group = 1,
-                          mu0 = 0, k0 = 0, v0 = 0, sigma0_2 = 0, n0_cor = 0) {
+# Bayesian analysis ----------------------------------------------------------------
+## Prior parmeters
+find_prior_par <- function(pilot_name = 01, n_pilot, mean_pilot, s2_pilot, belief = 1,
+                           mu0 = 0, k0 = 0, v0 = 0, sigma0_2 = 0, n0_cor = 0,
+                          n_sampled = 10000) {
   
-  # Posterior: parameters 
+  # Prior: parameters
   n_group_cor <- n_group * belief_group
   
   mu1 <- ((k0/(k0 + n_group_cor)) * mu0) + 
@@ -116,10 +105,10 @@ find_post_par <- function(n_group, mean_group, s2_group, belief_group = 1,
   
   sigma1_2 <- 
     (
-    
+      
       v0*sigma0_2 + 
-      (n_group_cor - 1) * s2_group + 
-      ((k0 * n_group_cor/(k0 + n_group_cor)) * ((mean_group - mu0)^2))
+        (n_group_cor - 1) * s2_group + 
+        ((k0 * n_group_cor/(k0 + n_group_cor)) * ((mean_group - mu0)^2))
       
     ) / v1
   
