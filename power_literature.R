@@ -280,3 +280,82 @@ ggplot(dat_theor, aes(x = pow_prior, fill = factor(eff_size), alpha = factor(pri
   scale_alpha_discrete(range = c(0.2,0.8)) + 
   coord_cartesian(clip = "off")
 
+
+
+
+# Theoretical power with prior AND new practice--------------------------------------------
+dat_theor <- dat %>% 
+  bind_rows(dat,dat) %>%
+  mutate(eff_size = rep(all_es, each = nrow(dat)))
+
+pow <- pwr.t2n.test(n1 = dat_theor$n_1,
+                    n2 = dat_theor$n_2,
+                    d  = dat_theor$eff_size,
+                    sig.level = .05)
+dat_theor$theor_pow <- pow$power
+
+sum_n_meta <- dat %>% 
+  group_by(study) %>%
+  summarize(prior_n_1 = sum(n_1),
+            prior_n_3 = sum(n_1) * 0.3)
+#dat_theor <- x
+dat_theor <- data.frame(dat_theor,
+                        sum_n_meta[match(dat_theor$study,
+                                         sum_n_meta$study),
+                                   c("prior_n_1", "prior_n_3")])
+
+
+names(dat_theor)
+dat_theor$n_1_new <- dat_theor$n_t / 3
+dat_theor$n_2_new <- (dat_theor$n_t / 3) *2
+
+dat_theor$n_1_prior_1_new <- dat_theor$n_1_new + dat_theor$prior_n_1
+dat_theor$n_1_prior_3_new <- dat_theor$n_1_new + dat_theor$prior_n_3
+
+dat_theor <- dat_theor %>%
+  select(-c(n_t, theor_pow, prior_n_1, prior_n_3)) %>%
+  gather(key = "prior", value = "n_1_c", c(n_1, n_1_prior_1_new, n_1_prior_3_new))
+
+# theoretical power calculation with prior
+theor_power <- pwr.t2n.test(n1 = dat_theor$n_1_c,
+                            n2 = dat_theor$n_2_new,
+                            d  = dat_theor$eff_size,
+                            sig.level = .05)
+dat_theor$pow_prior <- theor_power$power
+
+
+# theoretical power visualization
+dat_theor %>%
+  group_by(eff_size, prior) %>%
+  summarize(low_per = sum((pow_prior <= 0.5)) /nrow(dat) * 100,
+            high_per = sum((pow_prior >= 0.8))/ nrow(dat) * 100) -> per_power
+
+
+tryout <-
+  ggplot(dat_theor, aes(x = pow_prior, fill = factor(eff_size), alpha = factor(prior), sf = countMax$count/densMax$dens)) + 
+  geom_rect(mapping=aes(xmin=0, xmax=0.5, ymin=0, ymax=Inf),
+            fill= my_bad) +
+  geom_rect(mapping=aes(xmin=0.8, xmax=1, ymin=0, ymax=Inf),
+            fill= my_good) +
+  geom_density(data = dat_theor[dat_theor$prior == "n_1",],aes(y = ..density.. * sf), fill = "grey") +  
+  geom_histogram(data = dat_theor[dat_theor$prior %in% c("n_1_prior_3_new"),], 
+                 #  data = dat_theor[dat_theor$prior %in% c("n_1"),], 
+                 
+                 colour = "black", binwidth = 0.01, position = "identity") +
+  
+  ylab("Number of papers") + 
+  xlab("Estimated power before experiment") + 
+  facet_grid(eff_size ~., scales = "free") +
+  scale_y_continuous() +
+  my_theme + 
+  std_fill_dark +
+  labs(tag = "Hedge's G") +
+  theme(legend.position  = "none",
+        strip.background = element_rect(fill = NA),
+        strip.text = element_text(colour = "black", face = "bold"),
+        plot.tag.position = c(1.02, 0.535), 
+        plot.tag = element_text(angle = -90, size = 10),
+        plot.margin = unit(c(0.5,1,0.5,0.5), "cm")) +
+  scale_alpha_discrete(range = c(0.2,0.8)) + 
+  coord_cartesian(clip = "off")
+
