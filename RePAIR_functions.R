@@ -89,14 +89,16 @@ whats_pow <- function(n_low, n_ratio) {
 }
 
 
+
+
 # Bayesian analysis ----------------------------------------------------------------
 ## Prior parmeters
-find_prior_par <- function(pilot_name = 01, n_pilot, mean_pilot, s2_pilot, belief = 1,
+find_prior_par <- function(pilot_name = 01, n_group, mean_group, s2_group, belief = 1,
                            mu0 = 0, k0 = 0, v0 = 0, sigma0_2 = 0, n0_cor = 0,
                           n_sampled = 10000) {
   
   # Prior: parameters
-  n_group_cor <- n_group * belief_group
+  n_group_cor <- n_group * belief
   
   mu1 <- ((k0/(k0 + n_group_cor)) * mu0) + 
     ((n_group_cor/(k0 + n_group_cor)) * mean_group)
@@ -115,7 +117,7 @@ find_prior_par <- function(pilot_name = 01, n_pilot, mean_pilot, s2_pilot, belie
   n1_cor <- n0_cor + n_group_cor
   
   # Organize
-  paramenters <- as.data.frame(cbind(mu1, k1, v1, sigma1_2, n1_cor))
+  paramenters <- as.data.frame(cbind(mu0, k0, v0, sigma0_2, n0_cor))
   
   return(paramenters)
   
