@@ -48,6 +48,7 @@ pow_ach <-
   std_fill + 
   theme(legend.position = "none")
 
+saveRDS(pow_ach, "figures/power_achieved.rds")
 
 pow_ach_fields <- ggplot(meta, aes(x = power, fill = TRUE)) + 
   geom_histogram(colour = "black", bins = 50) +
@@ -80,6 +81,7 @@ total_n <- ggplot(dat, aes(x = n_t, fill = TRUE)) +
   my_theme + std_fill + 
   theme(legend.position = "none")
 
+saveRDS(total_n, file = "figures/total_n.rds")
 
 # Estimation effect size range --------------------------------------------
 # Effect size achieved
@@ -173,47 +175,7 @@ theor_pow <-
   coord_cartesian(clip = "off")
 theor_pow
 
-
-
-# ## Add in some colors based on the data
-# dat_theor$facet_fill_color <- c("my_purple_light", "my_watergreen_light", "my_yellow_light")[as.factor(dat_theor$eff_size)]
-# 
-# ## Create main plot
-# theor_pow
-# 
-# dummy <- theor_pow
-# dummy$layers <- NULL
-# dummy <- dummy + new_scale_fill() +
-#   # geom_rect(data=dat_theor, xmin=-Inf, ymin=-Inf, xmax=Inf, ymax=Inf,
-#   #                          aes(fill = eff_size))
-#   geom_rect(data = dat_theor,xmin=-Inf, xmax=Inf, ymin=-Inf, ymax=Inf, aes(fill = facet_fill_color)) +
-#   scale_fill_viridis(discrete = TRUE, alpha = 0.01)
-# dummy
-# 
-# library(gtable)
-# 
-# g1 <- ggplotGrob(theor_pow)
-# g2 <- ggplotGrob(dummy)
-# 
-# 
-# panels <- grepl(pattern="panel", g2$layout$name)
-# strips <- grepl(pattern="strip-right", g2$layout$name)
-# g2$grobs[strips] <- replicate(sum(strips), nullGrob(), simplify = FALSE)
-# g2$layout$l[panels] <- g2$layout$l[panels] + 1
-# g2$layout$r[panels] <- g2$layout$r[panels] + 2
-# 
-# new_strips <- gtable_select(g2, panels | strips)
-# grid.newpage()
-# grid.draw(new_strips)
-# 
-# 
-# ## ideally you'd remove the old strips, for now they're just covered
-# new_plot <- gtable_stack(g1, new_strips)
-# grid.draw(new_plot)
-
-# svg(filename = "figures/theoretical_power.svg")
-# grid.draw(new_plot)
-# dev.off()
+saveRDS(theor_pow, file = "figures/theoretical_power.rds")
 
 
 # Theoretical power with prior --------------------------------------------
@@ -328,25 +290,36 @@ dat_theor$pow_prior <- theor_power$power
 dat_theor %>%
   group_by(eff_size, prior) %>%
   summarize(low_per = sum((pow_prior <= 0.5)) /nrow(dat) * 100,
-            high_per = sum((pow_prior >= 0.8))/ nrow(dat) * 100) -> per_power
+            high_per = sum((pow_prior >= 0.8))/ nrow(dat) * 100) %>%
+filter(prior == "n_1_prior_3_new") -> per_power
 
 
-tryout <-
-  ggplot(dat_theor, aes(x = pow_prior, fill = factor(eff_size), alpha = factor(prior), sf = countMax$count/densMax$dens)) + 
+theor_pow_prior <-
+  ggplot(dat_theor, aes(x = pow_prior, fill = factor(eff_size), sf = countMax$count/densMax$dens)) + 
   geom_rect(mapping=aes(xmin=0, xmax=0.5, ymin=0, ymax=Inf),
             fill= my_bad) +
   geom_rect(mapping=aes(xmin=0.8, xmax=1, ymin=0, ymax=Inf),
             fill= my_good) +
-  geom_density(data = dat_theor[dat_theor$prior == "n_1",],aes(y = ..density.. * sf), fill = "grey") +  
+  geom_density(data = dat_theor[dat_theor$prior == "n_1",],aes(y = ..density.. * sf), fill = "grey", alpha = 0.5) +  
   geom_histogram(data = dat_theor[dat_theor$prior %in% c("n_1_prior_3_new"),], 
                  #  data = dat_theor[dat_theor$prior %in% c("n_1"),], 
                  
                  colour = "black", binwidth = 0.01, position = "identity") +
   
-  ylab("Number of papers") + 
-  xlab("Estimated power before experiment") + 
   facet_grid(eff_size ~., scales = "free") +
   scale_y_continuous() +
+  ylab("Number of papers") + 
+  xlab("Estimated power before experiment") + 
+  
+  geom_text(aes(x, y, label=lab, colour = "red"),
+            data = data.frame(x = 0.9, y = Inf,
+                              lab = paste0(round(per_power$high_per,1),"%"),
+                              eff_size = all_es),vjust=1) +
+  geom_text(aes(x, y, label=lab, colour = "green"),
+            data=data.frame(x=0.4, y=Inf,
+                            lab = paste0(round(per_power$low_per,1),"%"),
+                            eff_size = all_es),vjust=1) +
+
   my_theme + 
   std_fill_dark +
   labs(tag = "Hedge's G") +
@@ -359,3 +332,4 @@ tryout <-
   scale_alpha_discrete(range = c(0.2,0.8)) + 
   coord_cartesian(clip = "off")
 
+saveRDS(theor_pow_prior, file = "figures/theor_pow_prior.rds")
