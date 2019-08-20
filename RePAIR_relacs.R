@@ -1,9 +1,7 @@
 ## The RePAIR on relacs dataset
-
+## To do: better names for functions of RePAIR 
 # Environment -------------------------------------------------------------
 source("RePAIR_functions.R")
-set.seed(8709)
-
 
 
 # Import datasets ---------------------------------------------------------
@@ -92,13 +90,16 @@ dat_an$e_var <- dat_an$e_sd ^ 2
 t.test(di ~ control_or_ELS_animal, data = dat)
 
 ## Bayesian
-post_c_np <- sample_post(n_group = dat_an$c_n[1], mean_group = dat_an$c_mean[1], 
+
+post_c_np <- sample_post_cor(n_group = dat_an$c_n[1], mean_group = dat_an$c_mean[1], 
                          s2_group = dat_an$c_var[1])
-post_e <- sample_post(n_group = dat_an$e_n[1], mean_group = dat_an$e_mean[1], 
+post_e <- sample_post_cor(n_group = dat_an$e_n[1], mean_group = dat_an$e_mean[1], 
                       s2_group = dat_an$e_var[1])
 
-cred_int_fun_np <- post_e - post_c_np
-quantile(cred_int_fun_np, probs = c(0.025, .5, 0.975))
+exp_res <- data.frame(post_e = post_e, 
+                       post_c = post_c_np, 
+                       diff_post = post_e - post_c_np)
+quantile(exp_res$diff_post, probs = c(0.025, .5, 0.975))
 
 
 # With prior from relacs
@@ -124,15 +125,24 @@ dat %>%
   summarize(length(di), mean(di), var(di)) -> r_dat_p
 r_dat_p <- as.data.frame(r_dat_p)
 
-post_c_rp <- sample_post(n_group = r_dat_p[r_dat_p$r_p_sel == FALSE,2], 
+par_c_rp <- find_prior_par(n_group = r_dat_p[r_dat_p$r_p_sel == TRUE,2], 
+                           mean_group = r_dat_p[r_dat_p$r_p_sel == TRUE,3], 
+                           s2_group = r_dat_p[r_dat_p$r_p_sel == TRUE,4], 
+                           belief = 1,
+                           mu0 = 0, k0 = 0, v0 = 0, sigma0_2 = 0, n0_cor = 0,
+                           n_sampled = 10000) 
+post_c_rp <- sample_post_cor(n_group = r_dat_p[r_dat_p$r_p_sel == FALSE,2], 
                          mean_group = r_dat_p[r_dat_p$r_p_sel == FALSE,3], 
                          s2_group = r_dat_p[r_dat_p$r_p_sel == FALSE,4], 
-                         n_pilot = r_dat_p[r_dat_p$r_p_sel == TRUE,2], 
-                         mean_pilot = r_dat_p[r_dat_p$r_p_sel == TRUE,3], 
-                         s2_pilot = r_dat_p[r_dat_p$r_p_sel == TRUE,4]) 
+                         mu0 = par_c_rp$mu0, 
+                         k0 = par_c_rp$k0, 
+                         v0 = par_c_rp$v0, sigma0_2 = par_c_rp$sigma0_2) 
 
-cred_int_fun_rp <- post_e - post_c_rp
-quantile(cred_int_fun_np, probs = c(0.025, .5, 0.975))
+
+prel_res <- data.frame(post_e = post_e, 
+                      post_c = post_c_rp, 
+                      diff_post = post_e - post_c_rp)
+quantile(prel_res$diff_post, probs = c(0.025, .5, 0.975))
 
 
 # Prior from literature ---------------------------------------------------
@@ -148,9 +158,9 @@ for (i in 1:nrow(prior)) {
   
   if (i == 1) {
     
-    p_par <- find_prior_par(n_pilot    = prior$N[i],
-                            mean_pilot = prior$mean[i],
-                            s2_pilot   = prior$var[i],
+    p_par <- find_prior_par(n_group    = prior$N[i],
+                            mean_group = prior$mean[i],
+                            s2_group   = prior$var[i],
                             belief     = 1)
     
   } else {
@@ -158,21 +168,21 @@ for (i in 1:nrow(prior)) {
     p_par[i,] <- NA
     prev <- i - 1
     
-    post_par <- find_post_par(n_group = prior$N[i],
+    post_par <- find_prior_par(n_group = prior$N[i],
                               mean_group = prior$mean[i],
                               s2_group   = prior$var[i],
-                              belief_group = 1,
+                              belief = 0.3,
                               mu0 = as.numeric(p_par$mu0[prev]),
                               k0 = as.numeric(p_par$k0[prev]),
                               v0 = as.numeric(p_par$v0[prev]),
                               sigma0_2 = as.numeric(p_par$sigma0_2[prev]),
                               n0_cor = as.numeric(p_par$n0_cor[prev])
     )
-    p_par[i, "mu0"] <- post_par$mu1
-    p_par[i, "k0"] <- post_par$k1
-    p_par[i, "v0"] <- post_par$v1
-    p_par[i, "sigma0_2"] <- post_par$sigma1_2
-    p_par[i, "n0_cor"] <- post_par$n1_cor
+    p_par[i, "mu0"] <- post_par$mu0
+    p_par[i, "k0"] <- post_par$k0
+    p_par[i, "v0"] <- post_par$v0
+    p_par[i, "sigma0_2"] <- post_par$sigma0_2
+    p_par[i, "n0_cor"] <- post_par$n0_cor
     
   }
   
@@ -188,114 +198,43 @@ post_c_lp_app <- sample_post_cor(n_group = r_dat_p[r_dat_p$r_p_sel == FALSE,2],
                                  mu0 = p_par$mu0[nrow(p_par)], k0 = p_par$k0[nrow(p_par)], 
                                  v0 = p_par$v0[nrow(p_par)], sigma0_2 = p_par$sigma0_2[nrow(p_par)])
 
-
-cred_int_fun_lp_app <- post_e - post_c_lp_app
-quantile(cred_int_fun_lp_app, probs = c(0.025, .5, 0.975))
+lit_res <- data.frame(post_e = post_e, 
+                      post_c = post_c_lp_app, 
+                      diff_post = post_e - post_c_lp_app)
+quantile(lit_res$diff_post, probs = c(0.025, .5, 0.975))
 
 
 ## first meta-analyse data ## Bayesian way better than meta-analysing?
-post_c_lp_meta <- sample_post(n_group = r_dat_p[r_dat_p$r_p_sel == FALSE,2], 
+meta_par_c <- find_prior_par(n_group = sum(prior$N), 
+                           mean_group = round(mod$beta[1],2), 
+                           s2_group = (sqrt(sum(prior$N))*round(mod$se,2))^2, 
+                           belief = 0.3) 
+post_c_lp_meta <- sample_post_cor(n_group = r_dat_p[r_dat_p$r_p_sel == FALSE,2], 
                               mean_group = r_dat_p[r_dat_p$r_p_sel == FALSE,3], 
                               s2_group = r_dat_p[r_dat_p$r_p_sel == FALSE,4], 
-                              n_pilot = sum(prior$N), 
-                              mean_pilot = round(mod$beta[1],2), 
-                              s2_pilot = (sqrt(sum(prior$N))*round(mod$se,2))^2) #transform se from metafor to var 
-
-cred_int_fun_lp_meta <- post_e - post_c_lp_meta
-quantile(cred_int_fun_lp_meta, probs = c(0.025, .5, 0.975))
-
-p_21 <- ggdensity(post_e) +
-  xlim(0.5,0.7) +
-  xlab("Discrimination index") +
-  ylab("Density distribution") +
-  geom_density(fill = viridis(option = "C", n = 7)[7], alpha = 0.3) +
-  my_theme
-
-p_12 <- ggdensity(post_c_np) +
-  xlim(0.5,0.7) + ylim(0,50) +
-  xlab("Discrimination index") +
-  ylab("Density distribution") +
-  geom_density(fill = viridis(option = "C", n = 7)[1], alpha = 0.3) +
-  my_theme
-
-p_22 <- ggdensity(post_c_rp) +
-  xlim(0.5,0.7) + ylim(0,50) +
-  xlab("Discrimination index") +
-  ylab("Density distribution") +
-  geom_density(fill = viridis(option = "C", n = 7)[1], alpha = 0.3) +
-  my_theme
-
-p_32 <- ggdensity(post_c_lp_app) +
-  xlim(0.5,0.7) + ylim(0,50) +
-  xlab("Discrimination index") +
-  ylab("Density distribution") +
-  geom_density(fill = viridis(option = "C", n = 7)[1], alpha = 0.3) +
-  my_theme
-
-p_13 <- 
-  ggdensity(cred_int_fun_np) +
-  xlim(-0.3,0.3) + ylim(0,30) +
-  xlab("Discrimination index") +
-  ylab("Density distribution") +
-  annotate("rect", 
-           xmin = quantile(cred_int_fun_np, probs = 0.025), 
-           xmax = quantile(cred_int_fun_np, probs = 0.975), 
-           ymin = -Inf, ymax = Inf, 
-           alpha = .1) +
-  geom_vline(xintercept = 0, colour = "red") +
-  geom_density(fill = viridis(option = "D", n = 7)[6], alpha = 0.3) +
-  my_theme
-
-p_23 <- 
-  ggdensity(cred_int_fun_rp) +
-  xlim(-0.3,0.3) + ylim(0,30) +
-  xlab("Discrimination index") +
-  ylab("Density distribution") +
-  annotate("rect", 
-           xmin = quantile(cred_int_fun_rp, probs = 0.025), 
-           xmax = quantile(cred_int_fun_rp, probs = 0.975), 
-           ymin = -Inf, ymax = Inf, 
-           alpha = .1) +
-  geom_vline(xintercept = 0, colour = "red") +
-  geom_density(fill = viridis(option = "D", n = 7)[6], alpha = 0.3) +
-  my_theme
-
-p_33 <- 
-  ggdensity(cred_int_fun_lp_app) +
-  xlim(-0.3,0.3) + ylim(0,30) +
-  xlab("Discrimination index") +
-  ylab("Density distribution") +
-  annotate("rect", 
-           xmin = quantile(cred_int_fun_lp_app, probs = 0.025), 
-           xmax = quantile(cred_int_fun_lp_app, probs = 0.975), 
-           ymin = -Inf, ymax = Inf, 
-           alpha = .1) +
-  geom_vline(xintercept = 0, colour = "red") +
-  geom_density(fill = viridis(option = "D", n = 7)[6], alpha = 0.3) +
-  
-  my_theme
+                              mu0 = meta_par_c$mu0, 
+                              k0 = meta_par_c$k0, 
+                              v0 = meta_par_c$v0, sigma0_2 = meta_par_c$sigma0_2) #transform se from metafor to var 
+met_res <- data.frame(post_e = post_e, 
+                      post_c = post_c_lp_meta, 
+                      diff_post = post_e - post_c_lp_meta)
+quantile(met_res$diff_post, probs = c(0.025, .5, 0.975))
 
 
+####generalize this graph!!
+my_res <- data.frame(cbind(prior = rep(c("exp_res","prel_res", "lit_res"), each =10000),
+                           rbind(exp_res, prel_res, lit_res)))
 
-# Move to a new page
-svg(filename = "figures/analysis_relacs.svg")
-grid.newpage()
-# Create layout : nrow = 3, ncol = 2
-pushViewport(viewport(layout = grid.layout(nrow = 3, ncol = 3)))
-# A helper function to define a region on the layout
-define_region <- function(row, col){
-  viewport(layout.pos.row = row, layout.pos.col = col)
-} 
-# Arrange the plots
-print(p_21, vp = define_region(row = 2, col = 1)) 
+my_res %>% 
+  gather(key = "post", value = "val", -prior) %>%
+  mutate(fac = ifelse(post == "diff_post", "Difference", "Groups")) %>%
+    ggplot(aes(x = val, fill = post)) +
+    geom_density() +
+    facet_grid(prior~fct_rev(fac), scales = "free")+
+    geom_vline(data = data.frame(fac="Difference", x=0),
+               mapping = aes(xintercept = 0, colour = my_bad)) + 
+    my_theme + 
+    std_fill_dark +
+    theme(legend.position = "none") -> res_rep_rel
 
-print(p_12, vp = define_region(row = 1, col = 2))
-print(p_22, vp = define_region(row = 2, col = 2))   
-print(p_32, vp = define_region(row = 3, col = 2))   
-
-print(p_13, vp = define_region(row = 1, col = 3))
-print(p_23, vp = define_region(row = 2, col = 3))   
-print(p_33, vp = define_region(row = 3, col = 3))   
-
-dev.off()
-
+saveRDS(res_rep_rel, "figures/repair_results.rds")
