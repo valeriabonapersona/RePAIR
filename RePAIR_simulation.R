@@ -2,8 +2,6 @@
 
 # Environment -------------------------------------------------------------
 source("RePAIR_functions.R")
-set.seed(8709)
-
 
 
 # N for power 0.8 ----------------------------------------------------
@@ -18,8 +16,6 @@ dat$n_e <- pmap_dbl(list(dat$hedges, dat$sd_ec_ratio), whats_nC, n_ratio = 1)
 dat$n_c <- dat$n_e - dat$n_prior
 dat[dat$n_c <= 1,]$n_c <- 2 # min n_c must be 2
 dat$n_tot <- dat$n_c + dat$n_e
-
-  
 
 # Bayesian power -------------------------------------------------------
 # Parameters chosen to keep power at least at 80%.
@@ -198,11 +194,18 @@ bottom_right <-
 
 images <- list(top_left, top_right, bottom_left, bottom_right)
 
-for (im in c(1:length(images))) {
-  
-  svg(filename = paste0("figures/RePAIR_sim_", im, ".svg"))
-  print(images[[im]])  
-  dev.off()
+RePAIR_sim <- 
+  ggarrange(
+    
+    top_left, 
+    top_right,
+    bottom_left,
+    bottom_right,
+    
+    ncol = 2, nrow = 2, 
+    heights = c(1,2), widths = c(1,4)
+    
+  )
 
-}
+saveRDS(RePAIR_sim, file = "figures/RePAIR_sim.rds")
 
