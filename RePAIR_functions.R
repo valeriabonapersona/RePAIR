@@ -117,7 +117,12 @@ find_prior_par <- function(pilot_name = 01, n_group, mean_group, s2_group, belie
   n1_cor <- n0_cor + n_group_cor
   
   # Organize
-  paramenters <- as.data.frame(cbind(mu0, k0, v0, sigma0_2, n0_cor))
+  paramenters <- as.data.frame(cbind(pilot_name = pilot_name, 
+                                     mu0 = mu1, 
+                                     k0 = k1,
+                                     v0 = v1, 
+                                     sigma0_2 = sigma1_2, 
+                                     n0_cor = n1_cor))
   
   return(paramenters)
   
