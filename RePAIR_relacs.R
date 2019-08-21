@@ -2,11 +2,15 @@
 ## To do: better names for functions of RePAIR 
 # Environment -------------------------------------------------------------
 source("RePAIR_functions.R")
+set.seed(1234)
 
 
 # Import datasets ---------------------------------------------------------
 dat <- read.csv("n_stat_data.csv") # criteria: adult males OL task, >1h retention (both short and long), controls >50%, novel_exp >0
 dat <- dat %>% select(-contains("X"))
+dat$id_uni <- as.factor(paste(dat$id, dat$lab_lit, sep = "_")) # check unique animals
+identical(length(unique(dat$id_uni)), nrow(dat))
+
 
 prior <- read_excel("prior_control_literature.xlsx")
 prior$sd <- prior$sem * sqrt(prior$N)
@@ -19,14 +23,13 @@ prior$var <- prior$sd^2
 dat %>%
   select(control_or_ELS_animal, di) %>%
   group_by(control_or_ELS_animal) %>%
-  summarize(mean(di), sd(di), length(di)) %>%
-  gather(key = out, value = amount, `mean(di)`, `sd(di)`, `length(di)`) %>%
+  summarize(m = mean(di), sd = sd(di), n = length(di)) %>%
+  gather(key = out, value = amount, m, sd, n) %>%
   unite(var, control_or_ELS_animal, out, sep="_") %>%
   spread(key = var, value = amount) -> dat_sum
 
-names(dat_sum) <- c("Ln", "Lmean", "Lsd", "Pn", "Pmean", "Psd")
-dat_sum <- metafor::escalc(m1i = Pmean, sd1i = Psd, n1i = Pn,
-                           m2i = Lmean, sd2i = Lsd, n2i = Ln,
+dat_sum <- metafor::escalc(m1i = P_m, sd1i = P_sd, n1i = P_n,
+                           m2i = L_m, sd2i = L_sd, n2i = L_n,
                            measure = "SMD", data = dat_sum)
 
 # Effect size estimated here is -.36
@@ -67,174 +70,146 @@ dat %>%
 ## average power achieved is (again...) .2 . the 20% of 7 is 1.4, so if I have between 1 and 2
 ## papers significant, then I kind of validate the calculations
 
-# Does the amount of achieved power agree with the amount of sig studies? YES
-dat %>%
-  group_by(contact) %>%
-  # spread(key = control_or_ELS_animal, value = di) %>%
-  summarize(get_p(di, control_or_ELS_animal)) %>%
-  count(`get_p(di, control_or_ELS_animal)` <= 0.05)
-
-
 # RePAIR on relacs --------------------------------------------------------
 # Run sample_post function from sim_with_prior.Rmd
 # Prepare dataset
-dat_an <- cbind(dat_sum, 0, 0, 1)
-names(dat_an) <- c("c_n", "c_mean", "c_sd", 
-                   "e_n", "e_mean", "e_sd", 
-                   "p_n", "p_mean", "p_var")
+dat_an <- dat_sum
+names(dat_an) <- c("c_mean", "c_n", "c_sd",
+                   "e_mean", "e_n", "e_sd", "yi", "vi") ##put at the beginning when files unblinded
 dat_an$c_var <- dat_an$c_sd ^ 2
 dat_an$e_var <- dat_an$e_sd ^ 2
 
-# Without prior
-## Frequentist t-test
-t.test(di ~ control_or_ELS_animal, data = dat)
-
-## Bayesian
-
-post_c_np <- sample_post_cor(n_group = dat_an$c_n[1], mean_group = dat_an$c_mean[1], 
-                         s2_group = dat_an$c_var[1])
-post_e <- sample_post_cor(n_group = dat_an$e_n[1], mean_group = dat_an$e_mean[1], 
-                      s2_group = dat_an$e_var[1])
-
-exp_res <- data.frame(post_e = post_e, 
-                       post_c = post_c_np, 
-                       diff_post = post_e - post_c_np)
-quantile(exp_res$diff_post, probs = c(0.025, .5, 0.975))
 
 
-# With prior from relacs
-dat_an$c_n[1] - (dat_an$c_n[1] / 100 * 30) # I can remove up to 92 animals according to my rule of thumb
+# randomly remove control animals so that n_c = n_tot / 100 * 30 
+n_rem <- ceiling((dat_an$c_n[1]+dat_an$e_n[1]) * 0.3)
+rem <- sample(dat[dat$control_or_ELS_animal == "L",]$id_uni, n_rem)
+dat$sel <- ifelse(dat$id_uni %in% rem, TRUE, FALSE)
 
-## Calculate prior from relacs
-## I randomly pick 92 animals from relacs dataset and remove them
-dat$id_uni <- as.factor(paste(dat$id, dat$lab_lit, sep = "_"))
-identical(length(unique(dat$id_uni)), nrow(dat))
-
-#set.seed(7459)
-rem <- sample.int(dat_an$c_n[1], 92)
+# Summary stats relacs pilot and prior
 dat %>%
   filter(control_or_ELS_animal == "L") %>%
-  slice(rem) %>%
-  select(id_uni) -> r_prior_sel
+  group_by(sel) %>%
+  summarize(n = length(di), m = mean(di), v = var(di)) -> dat_sel
+dat_sel <- as.data.frame(dat_sel)
 
-dat$r_p_sel <- ifelse(dat$id_uni %in% r_prior_sel$id_uni, TRUE, FALSE)
+# Prior parameters --------------------------------------------------------
+## From relacs
+par_c_rp <- find_prior_par(pilot_name = "relacs",
+                           n_group = dat_sel[dat_sel$sel == TRUE,]$n, 
+                           mean_group = dat_sel[dat_sel$sel == TRUE,]$m, 
+                           s2_group = dat_sel[dat_sel$sel == TRUE,]$v) 
 
-dat %>%
-  filter(control_or_ELS_animal == "L") %>%
-  group_by(r_p_sel) %>%
-  summarize(length(di), mean(di), var(di)) -> r_dat_p
-r_dat_p <- as.data.frame(r_dat_p)
-
-par_c_rp <- find_prior_par(n_group = r_dat_p[r_dat_p$r_p_sel == TRUE,2], 
-                           mean_group = r_dat_p[r_dat_p$r_p_sel == TRUE,3], 
-                           s2_group = r_dat_p[r_dat_p$r_p_sel == TRUE,4], 
-                           belief = 1,
-                           mu0 = 0, k0 = 0, v0 = 0, sigma0_2 = 0, n0_cor = 0,
-                           n_sampled = 10000) 
-post_c_rp <- sample_post_cor(n_group = r_dat_p[r_dat_p$r_p_sel == FALSE,2], 
-                         mean_group = r_dat_p[r_dat_p$r_p_sel == FALSE,3], 
-                         s2_group = r_dat_p[r_dat_p$r_p_sel == FALSE,4], 
-                         mu0 = par_c_rp$mu0, 
-                         k0 = par_c_rp$k0, 
-                         v0 = par_c_rp$v0, sigma0_2 = par_c_rp$sigma0_2) 
-
-
-prel_res <- data.frame(post_e = post_e, 
-                      post_c = post_c_rp, 
-                      diff_post = post_e - post_c_rp)
-quantile(prel_res$diff_post, probs = c(0.025, .5, 0.975))
-
-
-# Prior from literature ---------------------------------------------------
-## meta-analysis
-mod <- metafor::rma(mean, sd^2, method = "FE", data = prior)
-
-## bayesian
-### run functions from repair below
-
+## From literature
+lit_p_par <- data.frame(rbind(rep(0,6)))
+names(lit_p_par) <- c("pilot_name", "mu0", "k0", "v0", "sigma0_2", "n0_cor")
+  
 for (i in 1:nrow(prior)) {
   
-  print(prior$author[i])
-  
-  if (i == 1) {
-    
-    p_par <- find_prior_par(n_group    = prior$N[i],
-                            mean_group = prior$mean[i],
-                            s2_group   = prior$var[i],
-                            belief     = 1)
-    
-  } else {
-    
-    p_par[i,] <- NA
-    prev <- i - 1
-    
-    post_par <- find_prior_par(n_group = prior$N[i],
-                              mean_group = prior$mean[i],
-                              s2_group   = prior$var[i],
-                              belief = 0.3,
-                              mu0 = as.numeric(p_par$mu0[prev]),
-                              k0 = as.numeric(p_par$k0[prev]),
-                              v0 = as.numeric(p_par$v0[prev]),
-                              sigma0_2 = as.numeric(p_par$sigma0_2[prev]),
-                              n0_cor = as.numeric(p_par$n0_cor[prev])
+  post_par <- find_prior_par(pilot_name = "lit",
+                             n_group    = prior$N[i],
+                             mean_group = prior$mean[i],
+                             s2_group   = prior$var[i],
+                             belief     = prior$belief_02[i],
+                             mu0        = as.numeric(lit_p_par$mu0[i]),
+                             k0         = as.numeric(lit_p_par$k0[i]),
+                             v0         = as.numeric(lit_p_par$v0[i]),
+                             sigma0_2   = as.numeric(lit_p_par$sigma0_2[i]),
+                             n0_cor     = as.numeric(lit_p_par$n0_cor[i])
     )
-    p_par[i, "mu0"] <- post_par$mu0
-    p_par[i, "k0"] <- post_par$k0
-    p_par[i, "v0"] <- post_par$v0
-    p_par[i, "sigma0_2"] <- post_par$sigma0_2
-    p_par[i, "n0_cor"] <- post_par$n0_cor
-    
-  }
   
-  print(nrow(p_par))
+    lit_p_par <- rbind(lit_p_par, post_par)  
+
+}
+
+## From meta-analysis
+mod <- metafor::rma(mean, sd^2, method = "FE", data = prior)
+
+meta_par_c <- find_prior_par(pilot_name = "meta",
+                             n_group = sum(prior$N * prior$belief_02), 
+                             mean_group = round(mod$beta[1],2), 
+                             s2_group = (sqrt(sum(prior$N * prior$belief_02))*round(mod$se,2))^2) 
+
+prior_par <- data.frame(rbind(par_c_rp, lit_p_par[c(1,nrow(lit_p_par)),], meta_par_c))
+
+# Relacs analysis ---------------------------------------------------
+# Frequentist t-test
+t.test(di ~ control_or_ELS_animal, data = dat)
+t.test(di ~ control_or_ELS_animal, data = dat[dat$sel == FALSE,])
+
+# Bayesian
+## Experimental group
+post_e <- sample_post_cor(n_group = dat_an$e_n[1], mean_group = dat_an$e_mean[1], 
+                          s2_group = dat_an$e_var[1])
+
+## put here control validation t-test
+post_c_check <- sample_post_cor(n_group = dat_an$c_n[1], mean_group = dat_an$c_mean[1], 
+                                s2_group = dat_an$c_var[1])
+
+## Control group
+post_c_all <- data.frame(matrix(nrow = 10000, ncol = nrow(prior_par)))
+names(post_c_all) <- prior_par$pilot_name
+
+for (my_col in levels(as.factor(prior_par$pilot_name))) {
+
+  post_c_all[, my_col] <- sample_post_cor(n_group    = dat_sel[dat_sel$sel == FALSE,]$n, 
+                                mean_group = dat_sel[dat_sel$sel == FALSE,]$m, 
+                                s2_group   = dat_sel[dat_sel$sel == FALSE,]$v, 
+                                mu0  = as.numeric(as.character(prior_par[prior_par$pilot_name == my_col,]$mu0)),
+                                k0   = as.numeric(as.character(prior_par[prior_par$pilot_name == my_col,]$k0)),
+                                v0   = as.numeric(as.character(prior_par[prior_par$pilot_name == my_col,]$v0)),
+                                sigma0_2   = as.numeric(as.character(prior_par[prior_par$pilot_name == my_col,]$sigma0_2)))
   
 }
 
+post_c_all <- data.frame(cbind(post_c_check, post_c_all))
+## bayesian
+### run functions from repair below
+post_diff <- post_e - post_c_all
 
-#with my parameters I now calculate the posterior of the control
-post_c_lp_app <- sample_post_cor(n_group = r_dat_p[r_dat_p$r_p_sel == FALSE,2], 
-                                 mean_group = r_dat_p[r_dat_p$r_p_sel == FALSE,3], 
-                                 s2_group = r_dat_p[r_dat_p$r_p_sel == FALSE,4],
-                                 mu0 = p_par$mu0[nrow(p_par)], k0 = p_par$k0[nrow(p_par)], 
-                                 v0 = p_par$v0[nrow(p_par)], sigma0_2 = p_par$sigma0_2[nrow(p_par)])
-
-lit_res <- data.frame(post_e = post_e, 
-                      post_c = post_c_lp_app, 
-                      diff_post = post_e - post_c_lp_app)
-quantile(lit_res$diff_post, probs = c(0.025, .5, 0.975))
+t(apply(post_diff,2, quantile, probs = c(0.975)))
 
 
-## first meta-analyse data ## Bayesian way better than meta-analysing?
-meta_par_c <- find_prior_par(n_group = sum(prior$N), 
-                           mean_group = round(mod$beta[1],2), 
-                           s2_group = (sqrt(sum(prior$N))*round(mod$se,2))^2, 
-                           belief = 0.3) 
-post_c_lp_meta <- sample_post_cor(n_group = r_dat_p[r_dat_p$r_p_sel == FALSE,2], 
-                              mean_group = r_dat_p[r_dat_p$r_p_sel == FALSE,3], 
-                              s2_group = r_dat_p[r_dat_p$r_p_sel == FALSE,4], 
-                              mu0 = meta_par_c$mu0, 
-                              k0 = meta_par_c$k0, 
-                              v0 = meta_par_c$v0, sigma0_2 = meta_par_c$sigma0_2) #transform se from metafor to var 
-met_res <- data.frame(post_e = post_e, 
-                      post_c = post_c_lp_meta, 
-                      diff_post = post_e - post_c_lp_meta)
-quantile(met_res$diff_post, probs = c(0.025, .5, 0.975))
 
+# Visualization results ---------------------------------------------------
+post_c_all %>% 
+  gather(key = prior, value = post_c) %>%
+  bind_cols(post_e = rep(post_e, ncol(post_c_all))) %>%
+  mutate(diff = post_e - post_c) %>%
+  gather(key = group, value = post, -prior) %>%
+  mutate(fac = ifelse(group == "diff", "Difference", "Groups")) -> post_graph
+ 
+post_graph$prior <- as.factor(post_graph$prior)
+post_graph$prior <- factor(post_graph$prior, levels = c("post_c_check", "X0", "relacs", "lit", "meta"))
+post_graph %>%
+  filter(fac == "Difference") %>%
+  group_by(prior) %>%
+  summarize(high = quantile(post, probs = 0.975), 
+            low  = quantile(post, probs = 0.025)) -> diff_quant
 
-####generalize this graph!!
-my_res <- data.frame(cbind(prior = rep(c("exp_res","prel_res", "lit_res"), each =10000),
-                           rbind(exp_res, prel_res, lit_res)))
-
-my_res %>% 
-  gather(key = "post", value = "val", -prior) %>%
-  mutate(fac = ifelse(post == "diff_post", "Difference", "Groups")) %>%
-    ggplot(aes(x = val, fill = post)) +
+post_graph %>%
+   ggplot(aes(x = post, fill = group)) +
     geom_density() +
-    facet_grid(prior~fct_rev(fac), scales = "free")+
+    facet_grid(prior~fct_rev(fac), scales = "free") +
     geom_vline(data = data.frame(fac="Difference", x=0),
-               mapping = aes(xintercept = 0, colour = my_bad)) + 
+               mapping = aes(xintercept = diff_quant$high), linetype = 2, alpha = 0.5) +
+    geom_vline(data = data.frame(fac="Difference", x=0),
+               mapping = aes(xintercept = diff_quant$low), linetype = 2, alpha = 0.5) +
+    geom_vline(data = data.frame(fac="Difference", x=0),
+               mapping = aes(xintercept = 0, colour = my_bad)) +
     my_theme + 
     std_fill_dark +
     theme(legend.position = "none") -> res_rep_rel
 
 saveRDS(res_rep_rel, "figures/repair_results.rds")
+
+
+
+# Manual calculation p-value ----------------------------------------------
+
+## from https://www.medcalc.org/calc/comparison_of_means.php
+#I will consider
+post_e
+post_c_check
+
+
