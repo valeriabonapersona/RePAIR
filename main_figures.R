@@ -27,7 +27,7 @@ dev.off()
 
 # Figure 2 ----------------------------------------------------------------
 RePAIR_sim <- readRDS("figures/RePAIR_sim.rds")
-theor_pow_prior <- readRDS("figures/theor_pow_prior.rds") ##countMax needs to be saved
+theor_pow_prior <- readRDS("figures/theor_pow_redi_03.rds") ##countMax needs to be saved
 RePAIR_res <- readRDS("figures/repair_results.rds")
 
 svg(filename = "figures/Figure_02.svg")
@@ -35,11 +35,29 @@ svg(filename = "figures/Figure_02.svg")
 ggarrange(
   RePAIR_sim,
   
-  ggarrange(theor_pow_prior, RePAIR_res, ncol = 2, labels = c("B", "C"), widths = c(1.5,1)),
+  ggarrange(RePAIR_res,theor_pow_prior, ncol = 2, labels = c("B", "C"), widths = c(1,1.5)),
   
   nrow = 2, 
   labels = c("A", NA)
-)
+) 
 
 dev.off()
 
+
+
+
+# Figure S5 ---------------------------------------------------------------
+# import individual images
+t_pow_1 <- readRDS("figures/theor_pow_rean_1.rds")
+t_pow_03 <- readRDS("figures/theor_pow_rean_03.rds")
+
+svg(filename = "figures/Fig_S5.svg")
+
+ggarrange(
+  t_pow_03,
+  t_pow_1,
+  nrow = 2, 
+  labels = c("A", "B")
+)
+
+dev.off()
