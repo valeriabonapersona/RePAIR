@@ -179,157 +179,115 @@ saveRDS(theor_pow, file = "figures/theoretical_power.rds")
 
 
 # Theoretical power with prior --------------------------------------------
-sum_n_meta <- dat %>% 
-  group_by(study) %>%
-  summarize(prior_n_1 = sum(n_1),
-            prior_n_3 = sum(n_1) * 0.3)
-#dat_theor <- x
-dat_theor <- data.frame(dat_theor,
-                        sum_n_meta[match(dat_theor$study,
-                                         sum_n_meta$study),
-                                   c("prior_n_1", "prior_n_3")])
-
-
-names(dat_theor)
-
-dat_theor$n_1_prior_1 <- dat_theor$n_1 + dat_theor$prior_n_1
-dat_theor$n_1_prior_3 <- dat_theor$n_1 + dat_theor$prior_n_3
-
-dat_theor <- dat_theor %>%
-  select(-c(n_t, theor_pow, prior_n_1, prior_n_3)) %>%
-  gather(key = "prior", value = "n_1_c", c(n_1, n_1_prior_1, n_1_prior_3))
-
-# theoretical power calculation with prior
-theor_power <- pwr.t2n.test(n1 = dat_theor$n_1_c,
-                            n2 = dat_theor$n_2,
-                            d  = dat_theor$eff_size,
-                            sig.level = .05)
-dat_theor$pow_prior <- theor_power$power
-
-
-# theoretical power visualization
-dat_theor %>%
-  group_by(eff_size, prior) %>%
-  summarize(low_per = sum((pow_prior <= 0.5)) /nrow(dat) * 100,
-            high_per = sum((pow_prior >= 0.8))/ nrow(dat) * 100) -> per_power
-
-
-tryout <-
-ggplot(dat_theor, aes(x = pow_prior, fill = factor(eff_size), alpha = factor(prior), sf = countMax$count/densMax$dens)) + 
-  geom_rect(mapping=aes(xmin=0, xmax=0.5, ymin=0, ymax=Inf),
-            fill= my_bad) +
-  geom_rect(mapping=aes(xmin=0.8, xmax=1, ymin=0, ymax=Inf),
-            fill= my_good) +
-  geom_density(data = dat_theor[dat_theor$prior == "n_1",],aes(y = ..density.. * sf), fill = "grey") +  
-  geom_histogram(data = dat_theor[dat_theor$prior %in% c("n_1_prior_3"),], 
-               #  data = dat_theor[dat_theor$prior %in% c("n_1"),], 
-                                
-                 colour = "black", binwidth = 0.01, position = "identity") +
-
-  ylab("Number of papers") + 
-  xlab("Estimated power before experiment") + 
-  facet_grid(eff_size ~., scales = "free") +
-  scale_y_continuous() +
-  my_theme + 
-  std_fill_dark +
-  labs(tag = "Hedge's G") +
-  theme(legend.position  = "none",
-        strip.background = element_rect(fill = NA),
-        strip.text = element_text(colour = "black", face = "bold"),
-        plot.tag.position = c(1.02, 0.535), 
-        plot.tag = element_text(angle = -90, size = 10),
-        plot.margin = unit(c(0.5,1,0.5,0.5), "cm")) +
-  scale_alpha_discrete(range = c(0.2,0.8)) + 
-  coord_cartesian(clip = "off")
-
-
-
-
-# Theoretical power with prior AND new practice--------------------------------------------
+## Preparation dataset
+# for each effect size
 dat_theor <- dat %>% 
+ # filter(!study %in% c("metabolism", "neuroscience")) %>% ##keep or remove?
   bind_rows(dat,dat) %>%
   mutate(eff_size = rep(all_es, each = nrow(dat)))
 
-pow <- pwr.t2n.test(n1 = dat_theor$n_1,
+# for each prior effect size
+priors <- c("no", "rean_1", "rean_03", "redi_1", "redi_03")
+dat_theor <- dat_theor %>% 
+  bind_rows(dat_theor, dat_theor, dat_theor, dat_theor) %>%
+  mutate(prior_type = rep(priors, each = nrow(dat_theor))) %>%
+  mutate(n_2 = ifelse(prior_type %in% c("redi_1", "redi_03"), 
+                      n_t / 3 * 2, n_2)) %>%
+  mutate(n_1 = ifelse(prior_type %in% c("redi_1", "redi_03"), 
+                      n_t / 3, n_1)) %>%
+ group_by(study, prior_type, eff_size) %>%
+  mutate(
+    prior_n = case_when(
+      prior_type == "no" ~ 0,
+      prior_type == "rean_1" ~ sum(n_1) - n_1,
+      prior_type == "rean_03" ~ sum(n_1) * 0.3 - n_1,
+      prior_type == "redi_1" ~ sum(n_t),
+      prior_type == "redi_03" ~ sum(n_t) * 0.3,
+    )
+  ) %>% 
+  ungroup() %>%
+  mutate(n_1_tot = n_1 + prior_n)
+  
+
+pow <- pwr.t2n.test(n1 = dat_theor$n_1_tot,
                     n2 = dat_theor$n_2,
                     d  = dat_theor$eff_size,
                     sig.level = .05)
 dat_theor$theor_pow <- pow$power
 
-sum_n_meta <- dat %>% 
-  group_by(study) %>%
-  summarize(prior_n_1 = sum(n_1),
-            prior_n_3 = sum(n_1) * 0.3)
-#dat_theor <- x
-dat_theor <- data.frame(dat_theor,
-                        sum_n_meta[match(dat_theor$study,
-                                         sum_n_meta$study),
-                                   c("prior_n_1", "prior_n_3")])
+## Visualization
+# Find maximum value of density
+densMax <- dat_theor %>% 
+  filter(prior_type == "no") %>%
+  group_by(eff_size) %>%
+  summarise(dens = max(density(theor_pow)[["y"]])) %>%
+  filter(dens == max(dens))
+
+# Find maximum value of bin count
+countMax <- dat_theor %>% 
+  filter(prior_type == "no") %>%
+  group_by(eff_size, 
+           bins=cut(theor_pow, seq(floor(min(theor_pow)),
+                                   ceiling(max(theor_pow)), 
+                                   0.01), right=FALSE)) %>%
+  summarise(count=n()) %>% 
+  ungroup() %>% filter(count==max(count))
 
 
-names(dat_theor)
-dat_theor$n_1_new <- dat_theor$n_t / 3
-dat_theor$n_2_new <- (dat_theor$n_t / 3) *2
-
-dat_theor$n_1_prior_1_new <- dat_theor$n_1_new + dat_theor$prior_n_1
-dat_theor$n_1_prior_3_new <- dat_theor$n_1_new + dat_theor$prior_n_3
-
-dat_theor <- dat_theor %>%
-  select(-c(n_t, theor_pow, prior_n_1, prior_n_3)) %>%
-  gather(key = "prior", value = "n_1_c", c(n_1, n_1_prior_1_new, n_1_prior_3_new))
-
-# theoretical power calculation with prior
-theor_power <- pwr.t2n.test(n1 = dat_theor$n_1_c,
-                            n2 = dat_theor$n_2_new,
-                            d  = dat_theor$eff_size,
-                            sig.level = .05)
-dat_theor$pow_prior <- theor_power$power
-
-
-# theoretical power visualization
-dat_theor %>%
-  group_by(eff_size, prior) %>%
-  summarize(low_per = sum((pow_prior <= 0.5)) /nrow(dat) * 100,
-            high_per = sum((pow_prior >= 0.8))/ nrow(dat) * 100) %>%
-filter(prior == "n_1_prior_3_new") -> per_power
-
-
-theor_pow_prior <-
-  ggplot(dat_theor, aes(x = pow_prior, fill = factor(eff_size), sf = countMax$count/densMax$dens)) + 
-  geom_rect(mapping=aes(xmin=0, xmax=0.5, ymin=0, ymax=Inf),
-            fill= my_bad) +
-  geom_rect(mapping=aes(xmin=0.8, xmax=1, ymin=0, ymax=Inf),
-            fill= my_good) +
-  geom_density(data = dat_theor[dat_theor$prior == "n_1",],aes(y = ..density.. * sf), fill = "grey", alpha = 0.5) +  
-  geom_histogram(data = dat_theor[dat_theor$prior %in% c("n_1_prior_3_new"),], 
-                 #  data = dat_theor[dat_theor$prior %in% c("n_1"),], 
-                 
-                 colour = "black", binwidth = 0.01, position = "identity") +
+for (each in levels(factor(dat_theor$prior_type))) {
+  print(each)
+  # Percentages distributions
+  dat_theor %>%
+    filter(prior_type == each) %>%
+    group_by(eff_size) %>%
+    summarize(low_per = sum((theor_pow <= 0.5)) /nrow(dat) * 100,
+              high_per = sum((theor_pow >= 0.8))/ nrow(dat) * 100) -> per_power
   
-  facet_grid(eff_size ~., scales = "free") +
-  scale_y_continuous() +
-  ylab("Number of papers") + 
-  xlab("Estimated power before experiment") + 
-  
-  geom_text(aes(x, y, label=lab, colour = "red"),
-            data = data.frame(x = 0.9, y = Inf,
-                              lab = paste0(round(per_power$high_per,1),"%"),
+my_graph <- dat_theor %>%
+    filter(prior_type == each) %>%
+  ggplot(aes(x = theor_pow, fill = factor(eff_size), sf = countMax$count/densMax$dens)) + 
+    geom_rect(mapping=aes(xmin=0, xmax=0.5, ymin=0, ymax=Inf),
+              fill= my_bad) +
+    geom_rect(mapping=aes(xmin=0.8, xmax=1, ymin=0, ymax=Inf),
+              fill= my_good) +
+    geom_density(data = dat_theor[dat_theor$prior_type == "no",],aes(y = ..density.. * sf), fill = "grey", alpha = 0.5) +  
+    geom_histogram(colour = "black", binwidth = 0.01, position = "identity") +
+    
+    facet_grid(eff_size ~., scales = "free") +
+    scale_y_continuous() +
+    ylab("Number of papers") + 
+    xlab("Estimated power before experiment") + 
+    
+    geom_text(aes(x, y, label=lab, colour = "red"),
+              data = data.frame(x = 0.9, y = Inf,
+                                lab = paste0(round(per_power$high_per,1),"%"),
+                                eff_size = all_es),vjust=1) +
+    geom_text(aes(x, y, label=lab, colour = "green"),
+              data=data.frame(x=0.4, y=Inf,
+                              lab = paste0(round(per_power$low_per,1),"%"),
                               eff_size = all_es),vjust=1) +
-  geom_text(aes(x, y, label=lab, colour = "green"),
-            data=data.frame(x=0.4, y=Inf,
-                            lab = paste0(round(per_power$low_per,1),"%"),
-                            eff_size = all_es),vjust=1) +
+    
+    my_theme + 
+    std_fill_dark +
+    labs(tag = "Hedge's G") +
+    theme(legend.position  = "none",
+          strip.background = element_rect(fill = NA),
+          strip.text = element_text(colour = "black", face = "bold"),
+          plot.tag.position = c(1.02, 0.535), 
+          plot.tag = element_text(angle = -90, size = 10),
+          plot.margin = unit(c(0.5,1,0.5,0.5), "cm")) +
+    scale_alpha_discrete(range = c(0.2,0.8)) + 
+    coord_cartesian(clip = "off")
+  
 
-  my_theme + 
-  std_fill_dark +
-  labs(tag = "Hedge's G") +
-  theme(legend.position  = "none",
-        strip.background = element_rect(fill = NA),
-        strip.text = element_text(colour = "black", face = "bold"),
-        plot.tag.position = c(1.02, 0.535), 
-        plot.tag = element_text(angle = -90, size = 10),
-        plot.margin = unit(c(0.5,1,0.5,0.5), "cm")) +
-  scale_alpha_discrete(range = c(0.2,0.8)) + 
-  coord_cartesian(clip = "off")
+# Save
+ saveRDS(my_graph, file = paste0("figures/theor_pow_", each,".rds"))
+  
 
-saveRDS(theor_pow_prior, file = "figures/theor_pow_prior.rds")
+}
+# readRDS("figures/theor_pow_rean_03.rds") -> a
+# 
+# svg(filename = paste0("figures/supp_theor_pow_rean_03.svg"))
+# a
+# dev.off()
+
