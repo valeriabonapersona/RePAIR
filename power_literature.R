@@ -117,15 +117,7 @@ pow <- pwr.t2n.test(n1 = dat_theor$n_1,
                     sig.level = .05)
 dat_theor$theor_pow <- pow$power
 
-
-
-# theoretical power visualization
-dat_theor %>%
-  group_by(eff_size) %>%
-  summarize(low_per = sum((theor_pow <= 0.5)) /nrow(dat) * 100,
-            high_per = sum((theor_pow >= 0.8))/ nrow(dat) * 100) -> per_power
-
-
+## Theoretical power visualization
 # Find maximum value of density
 densMax <- dat_theor %>% 
   group_by(eff_size) %>%
@@ -256,7 +248,7 @@ my_graph <- dat_theor %>%
     facet_grid(eff_size ~., scales = "free") +
     scale_y_continuous() +
     ylab("Number of papers") + 
-    xlab("Estimated power before experiment") + 
+    xlab("Prospective power") + 
     
     geom_text(aes(x, y, label=lab, colour = "red"),
               data = data.frame(x = 0.9, y = Inf,
@@ -285,7 +277,7 @@ my_graph <- dat_theor %>%
   
 
 }
-# readRDS("figures/theor_pow_rean_03.rds") -> a
+#  readRDS("figures/theor_pow_rean_03.rds") -> a
 # 
 # svg(filename = paste0("figures/supp_theor_pow_rean_03.svg"))
 # a
