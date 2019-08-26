@@ -115,7 +115,9 @@ sens %>%
   geom_hline(yintercept = 0.2, size = 0.5, linetype = "dotted", colour = "red") + 
   
   my_theme + 
-  scale_color_viridis(discrete = TRUE) ->sensit
+  scale_color_viridis(discrete = TRUE) + theme(legend.position = "none") ->sensit
 # svg(filename = "figures/sensit_02.svg")
 # sensit
 # dev.off()
+
+saveRDS(sensit, file = "figures/sensitivity.rds")
