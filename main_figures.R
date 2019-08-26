@@ -44,14 +44,32 @@ ggarrange(
 dev.off()
 
 
+# Figures S5 --------------------------------------------------------------
+# import images
+pop_control <- readRDS("figures/pop_control.rds") # fig A
+pop_means <- readRDS("pop_means_variation.rds") #fig B
+ex_distr <- readRDS("figures/ex_distr.rds") #fig C
+sensit <- readRDS("figures/sensitivity.rds") #fig D
 
 
-# Figure S5 ---------------------------------------------------------------
+svg(filename = "figures/Fig_S5.svg")
+ggarrange(
+  pop_control,
+  ex_distr, 
+  pop_means, 
+  sensit, 
+  #nrow = 2, 
+  heights = c(1, 1.5), widths = c(1,1.5),
+  labels = c("A", "C", "B", "D")
+)
+dev.off()
+
+# Figure S6 ---------------------------------------------------------------
 # import individual images
 t_pow_1 <- readRDS("figures/theor_pow_rean_1.rds")
 t_pow_03 <- readRDS("figures/theor_pow_rean_03.rds")
 
-svg(filename = "figures/Fig_S5.svg")
+svg(filename = "figures/Fig_S6.svg")
 
 ggarrange(
   t_pow_03,
