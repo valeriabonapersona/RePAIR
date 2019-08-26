@@ -75,9 +75,7 @@ pop_control <-
   theme(legend.position = "none")
   
 
-# svg(filename = "figures/supp_pop_control.svg")
-# pop_control
-# dev.off()
+saveRDS(pop_control, file = "figures/pop_control.rds")
 
 
 # Simulation estimation pop mean ------------------------------------------
@@ -104,7 +102,7 @@ plot(sim_means$N_cor ~ sim_means$number)
 ## variation mean by number of papers selected
 sim_means %>%
   filter(number != 14) %>%
-  group_by(number) %>%
+  #group_by(number) %>%
   summarize("0.025" = quantile(ave, probs = 0.025), 
             "0.25"  = quantile(ave, probs = 0.25), 
             "0.5"   = quantile(ave, probs = 0.5), 
@@ -146,10 +144,11 @@ sim_means_quant %>%
                size = 0.5, colour = viridis(5)[4],
                arrow = arrow(length = unit(0.1, "inches"))) -> sensitivity
 
-# svg(filename = "figures/supp_sensitivity.svg")
+# svg(filename = "figures/supp_sensitivity_02.svg")
 # sensitivity
 # dev.off()
 
+saveRDS(sensitivity, file = "pop_means_variation.rds")
 
 ## variation mean by N selected (by selecting papers)
 sim_means$N_group <- ifelse(sim_means$N %in% c(9:11), "10", 
@@ -181,4 +180,31 @@ sim_means_quant %>%
   spread(key = type, value = quant_round) %>%
   mutate(number_anim = number * 10) -> limits_means
 
-# write.csv(limits_means, "limits_means.csv")
+#write.csv(limits_means, "limits_means_02.csv")
+
+ex_dist <- 
+ggplot(NULL, aes(c(-5,10))) +
+  geom_area(stat = "function", fun = dnorm, args = list(mean = -1, sd = 1), fill = my_yellow, xlim = c(-4, 10)) +
+  geom_area(stat = "function", fun = dnorm, args = list(mean =  3, sd = 1), fill = my_watergreen_light, xlim = c(-4, 10)) +
+  geom_area(stat = "function", fun = dnorm, args = list(mean =  5, sd = 1), fill = my_watergreen, xlim = c(-4, 10)) +
+  geom_area(stat = "function", fun = dnorm, args = list(mean =  7, sd = 1), fill = my_watergreen_light, xlim = c(-4, 10)) +
+  geom_segment(aes(y= 0.4, yend=0.4, x=5, xend=3), 
+               size = 0.5, colour = viridis(option = "A", n=10)[7],
+               arrow = arrow(length = unit(0.1, "inches"))) +
+  geom_segment(aes(y=0.4, yend=0.4, x=5, xend=7), 
+               size = 0.5, colour = viridis(5)[4],
+               arrow = arrow(length = unit(0.1, "inches"))) +
+  # geom_segment(aes(y= 0.2, yend=0.2, x=-1, xend=5), 
+  #              size = 0.5, linetype = 2,
+  #              arrow = arrow(length = unit(0.1, "inches"))) +
+  # geom_segment(aes(y= 0.2, yend=0.2, x=5, xend=-1), 
+  #              size = 0.5, linetype = 2,
+  #              arrow = arrow(length = unit(0.1, "inches"))) +
+  my_theme + 
+  theme(axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.x = element_blank(),
+        axis.text.y=element_blank(),
+        axis.ticks.x=element_blank(),
+        axis.ticks.y=element_blank())
+saveRDS(ex_dist, file = "figures/ex_distr.rds")
