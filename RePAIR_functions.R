@@ -6,17 +6,15 @@ rm(list = ls())
 
 # Packages
 ## Data handling
-require(osfr)
-require(tidyverse) #should have also readxl
+library(osfr)
+library(tidyverse) #should have also readxl
 library(readxl) #for xlsx
 
 ## For functions
-library(data.table)
 library(assertive) 
 
 ## Other stats
 require(pwr)
-
 ## Graphs
 require(ggplot2)
 require(ggpubr)
@@ -110,8 +108,7 @@ find_post_par <- function(n_exp, mean_exp, s2_exp, belief, data_par = NULL) {
   my_prior_par <- c("mu0", "k0", "v0", "sigma0_2", "n0_cor")
   
   if (is.null(data_par)) {
-    print("ok")
-    
+
     mu0 <- 0
     k0 <- 0
     v0 <- 0
@@ -160,6 +157,15 @@ find_post_par <- function(n_exp, mean_exp, s2_exp, belief, data_par = NULL) {
   
 }
 
+find_prior_par <- function(n_exp, mean_exp, s2_exp, belief, data_par = NULL) {
+  
+  out_par <- find_post_par(n_exp = n_exp, 
+                           mean_exp = mean_exp, 
+                           s2_exp = s2_exp, belief = belief, data_par = data_par)
+  names(out_par) <- c("mu0", "k0", "v0", "sigma0_2", "n0_cor")
+  return(out_par)
+}
+
 find_multiple_prior_par <- function(data_exp, n_exp, mean_exp, s2_exp, belief, #prior_exp_name = NULL,
                      data_par = NULL) {
   
@@ -177,25 +183,18 @@ find_multiple_prior_par <- function(data_exp, n_exp, mean_exp, s2_exp, belief, #
   out_par <- data.frame(t(rep(0,5)))
   names(out_par) <- c("mu0", "k0", "v0", "sigma0_2", "n0_cor")
   for (i in c(1:nrow(my_data))) {
-    print(i)
     inter_par <- find_prior_par(n_exp = my_data[i, "n_exp"],
              mean_exp = my_data[i, "mean_exp"],
              s2_exp = my_data[i, "s2_exp"], 
-             belief = my_data[i, "belief"])
+             belief = my_data[i, "belief"],
+             data_par = out_par[nrow(out_par),])
     
     out_par <- rbind(out_par, inter_par)
   }
-   return(out_par)
+   return(out_par[-1,])
 }
 
-find_prior_par <- function(n_exp, mean_exp, s2_exp, belief, data_par = NULL) {
-  
-  out_par <- find_post_par(n_exp = n_exp, 
-                           mean_exp = mean_exp, 
-                           s2_exp = s2_exp, belief = belief, data_par = data_par)
-  names(out_par) <- c("mu0", "k0", "v0", "sigma0_2", "n0_cor")
-  return(out_par)
-}
+
 
 sample_post <- function(data_par, n_sampled) {
   
