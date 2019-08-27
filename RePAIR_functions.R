@@ -10,6 +10,9 @@ require(osfr)
 require(tidyverse) #should have also readxl
 library(readxl) #for xlsx
 
+## For functions
+library(data.table)
+library(assertive) 
 
 ## Other stats
 require(pwr)
@@ -62,7 +65,7 @@ gtable_stack <- function(g1, g2){
 
 # Power calculation-related -----------------------------------------------
 # outputs n smallest group (control)
-whats_nC <- function(delta, sd_ratio, n_ratio = 1, alt = "two.sided") {
+whats_nC <- function(delta, sd_ratio, n_ratio = 1, alt = "two.sided") { ##you can substitute the args of other functions as ...
   
   n_nec <- MESS::power_t_test(power = 0.8,
                               delta = delta,
@@ -93,58 +96,143 @@ whats_pow <- function(n_low, n_ratio) {
 
 # Bayesian analysis ----------------------------------------------------------------
 ## Prior parmeters
-find_prior_par <- function(pilot_name = 01, n_group, mean_group, s2_group, belief = 1,
-                           mu0 = 0, k0 = 0, v0 = 0, sigma0_2 = 0, n0_cor = 0,
-                          n_sampled = 10000) {
+
+find_post_par <- function(n_exp, mean_exp, s2_exp, belief, data_par = NULL) {
   
-  # Prior: parameters
-  n_group_cor <- n_group * belief
+  # Checks 
+  ## New variables
+  assert_is_a_number(n_exp)
+  assert_is_a_number(mean_exp)
+  assert_is_a_number(s2_exp)
+  assert_is_a_number(belief)
   
-  mu1 <- ((k0/(k0 + n_group_cor)) * mu0) + 
-    ((n_group_cor/(k0 + n_group_cor)) * mean_group)
-  k1 <- k0 + n_group_cor
-  v1 <- v0 + n_group_cor
+  ## Prior parameters
+  my_prior_par <- c("mu0", "k0", "v0", "sigma0_2", "n0_cor")
+  
+  if (is.null(data_par)) {
+    print("ok")
+    
+    mu0 <- 0
+    k0 <- 0
+    v0 <- 0
+    sigma0_2 <- 0
+    n0_cor <- 0
+    
+  } else if (!is.data.frame(data_par)) {
+    
+    stop("Data_par is not a dataframe")
+    
+  } else if (any(!my_prior_par %in% names(data_par))) {
+    
+    stop("The variable names of data_par are not consistent with outputs of find_prior_par() /n
+         For manual specification of prior parameters, create data_par dataframe with parameters: /n
+         mu0, k0, v0, sigma0_2, n0_cor")
+    
+  } else {
+    ##write function
+    mu0      <- data_par[nrow(data_par), "mu0"]
+    k0       <- data_par[nrow(data_par), "k0"]
+    v0       <- data_par[nrow(data_par), "v0"]
+    sigma0_2 <- data_par[nrow(data_par), "sigma0_2"]
+    n0_cor   <- data_par[nrow(data_par), "n0_cor"]
+    
+  }
+  
+  # Calculate parameters
+  ## exp indicates current experiment, 0 prior, 1 posterior
+  ## equations from Gelman Ch. XX
+  n_exp_cor <- n_exp * belief
+  
+  mu1 <- ((k0/(k0 + n_exp_cor)) * mu0) + 
+    ((n_exp_cor/(k0 + n_exp_cor)) * mean_exp)
+  k1 <- k0 + n_exp_cor
+  v1 <- v0 + n_exp_cor
   
   sigma1_2 <- 
-    (
-      
-      v0*sigma0_2 + 
-        (n_group_cor - 1) * s2_group + 
-        ((k0 * n_group_cor/(k0 + n_group_cor)) * ((mean_group - mu0)^2))
-      
+    (v0*sigma0_2 + (n_exp_cor - 1) * s2_exp + 
+       ((k0 * n_exp_cor/(k0 + n_exp_cor)) * ((mean_exp - mu0)^2))
     ) / v1
   
-  n1_cor <- n0_cor + n_group_cor
+  n1_cor <- n0_cor + n_exp_cor
   
   # Organize
-  paramenters <- as.data.frame(cbind(pilot_name = pilot_name, 
-                                     mu0 = mu1, 
-                                     k0 = k1,
-                                     v0 = v1, 
-                                     sigma0_2 = sigma1_2, 
-                                     n0_cor = n1_cor))
-  
-  return(paramenters)
+  data.frame(mu1, k1, v1, sigma1_2, n1_cor)
   
 }
 
+find_multiple_prior_par <- function(data_exp, n_exp, mean_exp, s2_exp, belief, #prior_exp_name = NULL,
+                     data_par = NULL) {
+  
+  # Checks
+  ##
+  assert_is_data.frame(data_exp)
+  assert_all_are_not_na(data_exp)
 
-## Sampling
-sample_post_cor <- function(n_group, mean_group, s2_group, belief = 1, n_sampled = 10000, 
-                            mu0 = 0, k0 = 0, v0 = 0, sigma0_2 = 0) {
+  my_data <- data.frame(n_exp    = data_exp[, n_exp], # is this necessary?
+                        mean_exp = data_exp[, mean_exp], 
+                        s2_exp   = data_exp[, s2_exp], 
+                        belief   = data_exp[, belief])
+
   
-  # Posterior: parameters 
-  mu1 <- ((k0/(k0 + n_group)) * mu0) + ((n_group/(k0 + n_group)) * mean_group)
-  k1 <- k0 + n_group
-  v1 <- v0 + n_group
+  out_par <- data.frame(t(rep(0,5)))
+  names(out_par) <- c("mu0", "k0", "v0", "sigma0_2", "n0_cor")
+  for (i in c(1:nrow(my_data))) {
+    print(i)
+    inter_par <- find_prior_par(n_exp = my_data[i, "n_exp"],
+             mean_exp = my_data[i, "mean_exp"],
+             s2_exp = my_data[i, "s2_exp"], 
+             belief = my_data[i, "belief"])
+    
+    out_par <- rbind(out_par, inter_par)
+  }
+   return(out_par)
+}
+
+find_prior_par <- function(n_exp, mean_exp, s2_exp, belief, data_par = NULL) {
   
-  sigma1_2 <- (v0*sigma0_2 + (n_group - 1)*s2_group + 
-                 ((k0*n_group/(k0+n_group)) * ((mean_group - mu0)^2))) / v1
+  out_par <- find_post_par(n_exp = n_exp, 
+                           mean_exp = mean_exp, 
+                           s2_exp = s2_exp, belief = belief, data_par = data_par)
+  names(out_par) <- c("mu0", "k0", "v0", "sigma0_2", "n0_cor")
+  return(out_par)
+}
+
+sample_post <- function(data_par, n_sampled) {
   
-  # Sample from posterior
+  # Checks 
+  ## New variables
+  assert_is_a_number(n_exp)
+  assert_is_a_number(mean_exp)
+  assert_is_a_number(s2_exp)
+  assert_is_a_number(belief)
   
-  sigma_post <- asbio::rinvchisq(n = n_sampled, # amount values to draw 
-                                 df = v1,  
+  ## Prior parameters
+  my_post_par <- c("mu1", "k1", "v1", "sigma1_2")
+  
+  if (!is.data.frame(data_par)) {
+    
+    stop("Data_par is not a dataframe")
+    
+  } else if (any(!my_prior_par %in% names(data_par))) {
+    
+    stop("The variable names of data_par are not consistent with outputs of find_post_par() /n
+         For manual specification of prior parameters, create data_par dataframe with parameters: /n
+         mu1, k1, v1, sigma1_2, n1_cor")
+    
+  } else {
+    ##write function
+    mu0      <- data_par[nrow(data_par), "mu0"]
+    k0       <- data_par[nrow(data_par), "k0"]
+    v0       <- data_par[nrow(data_par), "v0"]
+    sigma0_2 <- data_par[nrow(data_par), "sigma0_2"]
+    n0_cor   <- data_par[nrow(data_par), "n0_cor"]
+    
+  }
+  
+ 
+  # Sampling
+  sigma_post <- asbio::rinvchisq(n     = n_sampled, # amount values to draw 
+                                 df    = v1,  
                                  scale = sigma1_2)
   
   mu_post    <- rep(NA, n_sampled)
@@ -159,5 +247,5 @@ sample_post_cor <- function(n_group, mean_group, s2_group, belief = 1, n_sampled
   
   return(mu_post)
 }
-
+  
 
