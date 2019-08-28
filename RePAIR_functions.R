@@ -198,13 +198,7 @@ find_multiple_prior_par <- function(data_exp, n_exp, mean_exp, s2_exp, belief, #
 
 sample_post <- function(data_par, n_sampled) {
   
-  # Checks 
-  ## New variables
-  assert_is_a_number(n_exp)
-  assert_is_a_number(mean_exp)
-  assert_is_a_number(s2_exp)
-  assert_is_a_number(belief)
-  
+
   ## Prior parameters
   my_post_par <- c("mu1", "k1", "v1", "sigma1_2")
   
@@ -212,7 +206,7 @@ sample_post <- function(data_par, n_sampled) {
     
     stop("Data_par is not a dataframe")
     
-  } else if (any(!my_prior_par %in% names(data_par))) {
+  } else if (any(!my_post_par %in% names(data_par))) {
     
     stop("The variable names of data_par are not consistent with outputs of find_post_par() /n
          For manual specification of prior parameters, create data_par dataframe with parameters: /n
@@ -220,11 +214,11 @@ sample_post <- function(data_par, n_sampled) {
     
   } else {
     ##write function
-    mu0      <- data_par[nrow(data_par), "mu0"]
-    k0       <- data_par[nrow(data_par), "k0"]
-    v0       <- data_par[nrow(data_par), "v0"]
-    sigma0_2 <- data_par[nrow(data_par), "sigma0_2"]
-    n0_cor   <- data_par[nrow(data_par), "n0_cor"]
+    mu1      <- data_par[nrow(data_par), "mu1"]
+    k1       <- data_par[nrow(data_par), "k1"]
+    v1       <- data_par[nrow(data_par), "v1"]
+    sigma1_2 <- data_par[nrow(data_par), "sigma1_2"]
+    n1_cor   <- data_par[nrow(data_par), "n1_cor"]
     
   }
   
