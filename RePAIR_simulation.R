@@ -28,15 +28,11 @@ dat$p_sd_pooled <- sqrt(((dat$p_sd_e)^2 + (dat$p_sd_c)^2)/2) ## explanation from
 dat$p_mean_e <- dat$p_mean_c + (dat$p_sd_pooled * dat$hedges) # from hedges G definition
 
 # Parameters experiment
-dat$mean_c <- NA
-dat$mean_e <- NA
-dat$s2_c <- NA
-dat$s2_e <- NA
-
+dat[, c("mean_c", "mean_e", "s2_c", "s2_e", "bae_pow")] <- NA
 
 #simulation
-dat$bae_pow <- NA
 n_sim <- 10000
+
 for (i in c(1:nrow(dat))) {
   print(i)
   
@@ -79,7 +75,7 @@ for (i in c(1:nrow(dat))) {
     # Power
     
     quantile(cred_int, probs = c(.025, .975))
-    #print(quantile(cred_int, probs = c(.025, .975)))
+    
     contains_zero[sim] <- 0 >= quantile(cred_int, probs = .025) &
       0 <= quantile(cred_int, probs = .975)
     
@@ -95,117 +91,81 @@ dat <- read.csv("sim_prior.csv")
 # Visualization RePAIR ----------------------------------------------------
 #dat <- read.csv("/Users/vbonape2/surfdrive/Work/PhD/nStat/n_stat_git/sim_prior_power.csv")
 dat$my_cat <- ifelse(dat$n_prior == 0, "No prior", "With RePAIR")
+dat$my_y_cat <- ifelse(dat$n_tot <= 200, "small", "large")
+dat$n_tot_02 <- ifelse(dat$n_tot > 200, dat$n_tot / 100, dat$n_tot)
+current <- data.frame(hedges = 0.9, 
+                      n_prior = 0, 
+                      n_tot = 20, 
+                      my_cat = "No prior", 
+                      my_y_cat = "small", 
+                      bae_pow = 1)
+my_text <- data.frame(hedges = c(0.2,0.5,0.9),
+                      n_prior = rep(160,3), 
+                      n_tot = c(605, 72, 25), 
+                      my_cat = rep("With RePAIR",3), 
+                      my_y_cat = c("large","small", "small"), 
+                      bae_pow = rep(1,3), 
+                      lab = c("Hedge's G = 0.2", "Hedge's G = 0.5", "Hedge's G = 0.9"))
 
-top_left <- 
-  ggplot(
-    dat[dat$sd_ec_ratio == 1 & dat$hedges == "0.2" & dat$n_prior == 0,], 
-    aes(x = n_prior, y = n_tot, alpha = 0.5)
-  ) +
-  geom_point(size = 4, colour = my_purple, shape = 15) +
-  geom_point(size = 4, colour = "black", shape = 22, alpha = 1, fill = NA) +
-  facet_grid(~ my_cat) + 
-  scale_x_continuous(trans = "pseudo_log",
-                     breaks = c(0),
-                     limits = c(0,0)) +  
-  scale_y_continuous(trans = "pseudo_log",
-                     breaks = c(600,800),
-                     limits = c(550,850)) + 
-  ylab("Total N (exp + control)") +
-  my_theme +
-  theme(axis.title.x=element_blank(),
-        axis.text.x=element_blank(),
-        axis.ticks.x=element_blank(),
-        axis.line.x = element_blank(),
-        legend.position = "none") 
-
-
-top_right <-  ggplot(dat[dat$sd_ec_ratio == 1 & dat$hedges == "0.2" & dat$n_prior != 0,], 
-                 aes(x = n_prior, y = n_tot, 
-                     alpha = bae_pow/10000)) +
-  facet_grid(~my_cat) +
-  geom_line(size = 4, colour = my_purple) + 
-  geom_point(size = 4, colour = my_purple, shape = 15) +
-  geom_point(size = 4, colour = "black", shape = 22, alpha = 1, fill = NA) +
+ggplot(
+  dat[dat$sd_ec_ratio != 2,], 
+  aes(x = n_prior, y = n_tot, 
+      colour = factor(hedges), fill = factor(hedges), shape = factor(hedges), 
+      alpha = bae_pow/10000)
+) +
   
-  scale_x_continuous(trans = "pseudo_log",
-                     breaks = c(10,20,50,100,200),
-                     limits = c(10,200)) +  
-  scale_y_continuous(trans = "pseudo_log",
-                     breaks = c(600,800),
-                     limits = c(550,850)) + 
-  my_theme +
-  theme(axis.title.x=element_blank(),
-        axis.text.x=element_blank(),
-        axis.ticks.x=element_blank(),
-        axis.line.x = element_blank(),
-        axis.title.y=element_blank(),
-        axis.text.y=element_blank(),
-        axis.ticks.y=element_blank(),
-        axis.line.y = element_blank(),
-        legend.position = "none") +
-  scale_alpha(range = c(0.5, 1))
-
-
-bottom_left <- ggplot(dat[dat$sd_ec_ratio == 1 & dat$hedges != "0.2" & dat$n_prior == 0,],
-                 aes(x = n_prior, y = n_tot, 
-                     color = as.factor(hedges)), alpha = 0.5) + 
-  geom_point(size = 4, colour = c(my_watergreen, my_yellow), shape = c(19,17)) +
-  geom_point(size = 4, colour = "black", shape = c(21,24), alpha = 1, fill = NA) +
+ # geom_point(size = 4, colour = factor(hedges), shape = 15) +
+ # geom_point(size = 4, colour = c(my_purple, my_watergreen, my_yellow), shape = c(15,19,17)) +
   
-  scale_x_continuous(trans = "pseudo_log",
-                     breaks = c(0),
-                     limits = c(0,0)) +  
-  scale_y_continuous(trans = "pseudo_log",
-                     breaks = c(10,25,50,100),
-                     limits = c(10,130)) + 
-  my_theme +
-  theme(axis.line.x = element_line(arrow = arrow(0)),
-        axis.line.y = element_line(arrow = arrow(0)),
-        axis.title.x=element_text(colour = "white"), 
-        axis.title.y=element_text(colour = "white"), 
-        legend.position = "none") +
-  geom_point(aes(x = 0, y = 20), colour = "red", size = 4, shape = 18)
+  geom_line(size = 7, linejoin = "round") + 
+  geom_point(size = 8, fill = "white", alpha = 1, show.legend = FALSE) +
+  
+  geom_point(size = 8, show.legend = FALSE) + 
+  scale_fill_manual(values = c(my_yellow, my_watergreen, my_purple), guide = FALSE) + 
+  scale_colour_manual(values = c(my_yellow, my_watergreen, my_purple), guide = FALSE) + 
+  scale_shape_manual(values = c(22,21,24), guide = FALSE) +
+  scale_alpha(range = c(0.3, 0.9), name = "Power:") +
+  geom_point(size = 8, colour = "black", alpha = 1, fill = NA) +
+  facet_grid(my_y_cat ~ my_cat, scales = "free", space = "free") + 
+  scale_x_continuous(trans = "pseudo_log", 
+                     breaks = c(0,10,20,50,100,200)) + 
+  scale_y_continuous(trans = "pseudo_log", 
+                     breaks = c(0,20,40,80,120,600, 750)) + 
+  geom_point(data = current, aes(x = n_prior, y = n_tot), colour = "red", size = 8, shape = 18, alpha = 1) +
+  geom_text(data = my_text, aes(x = n_prior, y = n_tot, label = lab), colour = "black", alpha = 1) +
+  xlab(expression(paste(N[prior], italic(" (log scale)")))) +
+  ylab(expression(paste(N[total], " = ", N[exp], "+", N[con], italic(" (log scale)")))) +
+   my_theme + 
+  theme(legend.position = c(0.97,0.9),
+        legend.title.align = 0.5,
+        legend.direction = "vertical",
+        legend.background = element_rect(color = "black"),
+     #   legend.text = element_blank(),
+        legend.spacing.x = unit(0,"cm")) -> repair_plot
 
 
-bottom_right <- 
-  ggplot(dat[dat$sd_ec_ratio == 1 & dat$hedges != "0.2"  & dat$n_prior != 0,], 
-                 aes(x = n_prior, y = n_tot, colour = as.factor(hedges), 
-                     fill = as.factor(hedges), shape = as.factor(hedges), alpha = bae_pow/10000)) +
-    geom_line(size = 4) + 
-    geom_point(size = 4) + 
-    scale_fill_manual(values = c(my_watergreen, my_yellow)) + 
-    scale_colour_manual(values = c(my_watergreen, my_yellow)) + 
-    scale_shape_manual(values = c(21,24)) +
-    geom_point(size = 4, colour = "black", alpha = 1, fill = NA) +
-    scale_x_continuous(trans = "pseudo_log",
-                       breaks = c(10,20,50,100,200),
-                       limits = c(10,200)) +  
-    scale_y_continuous(trans = "pseudo_log",
-                       breaks = c(10,25,50,100),
-                       limits = c(10,130)) +   
-    xlab("N prior") +
-    my_theme +
-    theme(axis.title.y=element_blank(),        
-          axis.text.y=element_blank(),
-          axis.ticks.y=element_blank(),
-          axis.line.y = element_blank(),
-          legend.position = "none") +
-    scale_alpha(range = c(0.5, 1))
+## layout with grid
+gt_repair <- ggplotGrob(repair_plot)
 
-images <- list(top_left, top_right, bottom_left, bottom_right)
+gt_repair$heights[7] <- unit(30, "pt") 
+# remove right facet
+panels <- grep("panel", gt_repair$layout$name)
+right_facet <- unique(gt_repair$layout$b[panels])
+gt_repair <- gt_repair[, -(right_facet)]
 
-RePAIR_sim <- 
-  ggarrange(
-    
-    top_left, 
-    top_right,
-    bottom_left,
-    bottom_right,
-    
-    ncol = 2, nrow = 2, 
-    heights = c(1,2), widths = c(1,4)
-    
-  )
+#gt_repair$heights[1] <- unit(1.5, "cm")
+#gt_repair$heights[4] <- unit(3, "cm")
 
-saveRDS(RePAIR_sim, file = "figures/RePAIR_sim.rds")
+# change size facets
+gt_repair$widths[5] <- unit(0.4,"null")
+gt_repair$heights[8] <- unit(1.2, "null")
+
+# change size breaks axes
+gt_repair$widths[6] <- unit(30,"pt")
+gt_repair$heights[9] <- unit(30, "pt")
+
+grid.draw(gt_repair)
+
+#saveRDS(RePAIR_sim, file = "figures/RePAIR_sim.rds")
+saveRDS(gt_repair, file = "figures/gt_repair.rds")
 
