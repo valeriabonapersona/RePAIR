@@ -1,5 +1,7 @@
 ## The RePAIR on relacs dataset
 ## To do: better names for functions of RePAIR 
+## fix with new functions
+
 # Environment -------------------------------------------------------------
 source("RePAIR_functions.R")
 set.seed(1234)
@@ -75,7 +77,7 @@ dat %>%
 # Prepare dataset
 dat_an <- dat_sum
 names(dat_an) <- c("c_mean", "c_n", "c_sd",
-                   "e_mean", "e_n", "e_sd", "yi", "vi") ##put at the beginning when files unblinded
+                   "e_mean", "e_n", "e_sd") ##put at the beginning when files unblinded
 dat_an$c_var <- dat_an$c_sd ^ 2
 dat_an$e_var <- dat_an$e_sd ^ 2
 
@@ -92,6 +94,8 @@ dat %>%
   group_by(sel) %>%
   summarize(n = length(di), m = mean(di), v = var(di)) -> dat_sel
 dat_sel <- as.data.frame(dat_sel)
+
+
 
 # Prior parameters --------------------------------------------------------
 ## From relacs
@@ -213,3 +217,44 @@ post_e
 post_c_check
 
 
+
+
+
+# Priors and prospective power --------------------------------------------
+dat %>%
+  group_by(contact, control_or_ELS_animal) %>%
+  summarize(n = length(di)) %>%
+  spread(key = control_or_ELS_animal, value = n) -> dat_group_sum
+
+# Conventional prospective power according to our estimation Hedge's G = 0.4
+power <- pwr.t2n.test(n1 = dat_group_sum$L, n2 = dat_group_sum$P, 
+                      d = 0.4, sig.level = .05)
+dat_group_sum$power <- round(power$power,3)
+median(dat_group_sum$power)
+
+con_relacs <- sum(dat_group_sum$L)
+con_lit <- sum(prior$N * prior$belief_02)
+con_both <- con_relacs * 0.8 + con_lit
+
+exp_relacs <- sum(dat_group_sum$P)
+
+
+power <- pwr.t2n.test(n1 = con_relacs * 0.8, n2 = dat_group_sum$P, 
+                      d = 0.4, sig.level = .05)
+dat_group_sum$power_p08 <- round(power$power,3)
+power <- pwr.t2n.test(n1 = con_relacs, n2 = dat_group_sum$P, 
+                      d = 0.4, sig.level = .05)
+dat_group_sum$power_p1 <- round(power$power,3)
+
+power <- pwr.t2n.test(n1 = con_both, n2 = dat_group_sum$P, 
+                      d = 0.4, sig.level = .05)
+dat_group_sum$power_rel_lit <- round(power$power,3)
+
+power <- pwr.t2n.test(n1 = con_both, n2 = exp_relacs * 0.8, 
+                      d = 0.4, sig.level = .05)
+dat_group_sum$power_all_08 <- round(power$power,3)
+power <- pwr.t2n.test(n1 = con_both, n2 = exp_relacs, 
+                      d = 0.4, sig.level = .05)
+dat_group_sum$power_all_1 <- round(power$power,3)
+
+write.csv(dat_group_sum, file = "power_relacs.csv")
