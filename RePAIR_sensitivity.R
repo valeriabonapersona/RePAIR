@@ -1,10 +1,7 @@
 ## The RePAIR sensitivity
-
 # Environment -------------------------------------------------------------
 source("RePAIR_functions.R")
 set.seed(8709)
-
-
 
 # Datasets ----------------------------------------------------------------
 limits <- read.csv("limits_means_02.csv")
@@ -29,6 +26,8 @@ sens <- sens %>%
 sens$bae_pow_bad <- NA
 
 n_sim <- 10000
+n_sam <- 10000 # sampled from posterior
+
 for (i in c(1:nrow(sens))) {
   print(i)
   
@@ -52,17 +51,33 @@ for (i in c(1:nrow(sens))) {
     
     # Sampling from posterior
     ## Control
-    mu_post_c <- sample_post(n_group = sens[i,]$n_c, mean_group = sens[i,]$mean_c,
-                             s2_group = sens[i,]$s2_c, n_pilot = sens[i,]$n_prior,
-                             mean_pilot = sens[i,]$mean_prior, s2_pilot = 1) ## DIFFERENT HERE!
+    c_prior_par <- find_prior_par(n_exp = sens[i,]$n_prior, 
+                                  mean_exp = sens[i,]$mean_prior, 
+                                  s2_exp = 1, 
+                                  belief = 1)
+    
+    c_post_par <- find_post_par(n_exp = sens[i,]$n_c,
+                                mean_exp = sens[i,]$mean_c,
+                                s2_exp = sens[i,]$s2_c, 
+                                belief = 1,
+                                data_par = c_prior_par)
+    
+    c_sampled <- sample_post(data_par = c_post_par, 
+                             n_sampled = n_sam)
     
     
-    mu_post_e <- sample_post(n_group = sens[i,]$n_e, mean_group = sens[i,]$mean_e,
-                             s2_group = sens[i,]$s2_e)
+    ## Experimental
+    e_post_par <- find_post_par(n_exp = sens[i,]$n_e,
+                                mean_exp = sens[i,]$mean_e,
+                                s2_exp = sens[i,]$s2_e, 
+                                belief = 1)
     
+    e_sampled <- sample_post(data_par = e_post_par, 
+                             n_sampled = n_sam)
+
     
     # Credibility interval
-    cred_int <- mu_post_e - mu_post_c
+    cred_int <- e_sampled - c_sampled
     
     # Power
     
@@ -79,7 +94,9 @@ for (i in c(1:nrow(sens))) {
 
 
 #write.csv(sens, file = "sim_sensitivity.csv")
-sens <- read.csv("sim_sensitivity.csv")
+write.csv(sens, file = "sim_sensitivity_cor.csv")
+
+#sens <- read.csv("sim_sensitivity.csv") ##old
 
 
 

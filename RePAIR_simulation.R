@@ -32,6 +32,7 @@ dat[, c("mean_c", "mean_e", "s2_c", "s2_e", "bae_pow")] <- NA
 
 #simulation
 n_sim <- 10000
+n_sam <- 10000
 
 for (i in c(1:nrow(dat))) {
   print(i)
@@ -55,25 +56,36 @@ for (i in c(1:nrow(dat))) {
     
     # Sampling from posterior
     ## Control
-    par_c <- find_prior_par(n_pilot = dat[i,]$n_prior, 
-                            mean_pilot = 0, s2_pilot = 1) # prior parameters
+    c_prior_par <- find_prior_par(n_exp = dat[i,]$n_prior, 
+                            mean_exp = 0, 
+                            s2_exp = 1, 
+                            belief = 1)
     
-    mu_post_c <- sample_post_cor(n_group = dat[i,]$n_c, mean_group = dat[i,]$mean_c,
-                                 s2_group = dat[i,]$s2_c,  
-                                 mu0 = par_c$mu0, 
-                                 k0 = par_c$k0, v0 = par_c$v0, 
-                                 sigma0_2 = par_c$sigma0_2) 
+    c_post_par <- find_post_par(n_exp = dat[i,]$n_c,
+                                mean_exp = dat[i,]$mean_c,
+                                s2_exp = dat[i,]$s2_c, 
+                                belief = 1,
+                                data_par = c_prior_par)
     
+    c_sampled <- sample_post(data_par = c_post_par, 
+                             n_sampled = n_sam)
+
     
-    mu_post_e <- sample_post_cor(n_group = dat[i,]$n_e, mean_group = dat[i,]$mean_e,
-                             s2_group = dat[i,]$s2_e)
+    ## Experimental
+    e_post_par <- find_post_par(n_exp = dat[i,]$n_e,
+                                mean_exp = dat[i,]$mean_e,
+                                s2_exp = dat[i,]$s2_e, 
+                                belief = 1)
+    
+    e_sampled <- sample_post(data_par = e_post_par, 
+                             n_sampled = n_sam)
     
     
     # Credibility interval
-    cred_int <- mu_post_e - mu_post_c
+    cred_int <- e_sampled - c_sampled
+    
     
     # Power
-    
     quantile(cred_int, probs = c(.025, .975))
     
     contains_zero[sim] <- 0 >= quantile(cred_int, probs = .025) &
@@ -85,24 +97,26 @@ for (i in c(1:nrow(dat))) {
   
 }
 
-#write.csv(dat, file = "sim_prior.csv")
-dat <- read.csv("sim_prior.csv")
+#write.csv(dat, file = "sim_prior_cor.csv")
+dat <- read.csv("sim_prior.csv") ## old one
+
+dat <- read.csv("sim_prior_cor.csv")
 
 # Visualization RePAIR ----------------------------------------------------
 #dat <- read.csv("/Users/vbonape2/surfdrive/Work/PhD/nStat/n_stat_git/sim_prior_power.csv")
-dat$my_cat <- ifelse(dat$n_prior == 0, "No prior", "With RePAIR")
+dat$my_x_cat <- ifelse(dat$n_prior == 0, "No prior", "With RePAIR")
 dat$my_y_cat <- ifelse(dat$n_tot <= 200, "small", "large")
 dat$n_tot_02 <- ifelse(dat$n_tot > 200, dat$n_tot / 100, dat$n_tot)
 current <- data.frame(hedges = 0.9, 
                       n_prior = 0, 
                       n_tot = 20, 
-                      my_cat = "No prior", 
+                      my_x_cat = "No prior", 
                       my_y_cat = "small", 
                       bae_pow = 1)
 my_text <- data.frame(hedges = c(0.2,0.5,0.9),
                       n_prior = rep(160,3), 
                       n_tot = c(605, 72, 25), 
-                      my_cat = rep("With RePAIR",3), 
+                      my_x_cat = rep("With RePAIR",3), 
                       my_y_cat = c("large","small", "small"), 
                       bae_pow = rep(1,3), 
                       lab = c("Hedge's G = 0.2", "Hedge's G = 0.5", "Hedge's G = 0.9"))
@@ -111,36 +125,40 @@ ggplot(
   dat[dat$sd_ec_ratio != 2,], 
   aes(x = n_prior, y = n_tot, 
       colour = factor(hedges), fill = factor(hedges), shape = factor(hedges), 
-      alpha = bae_pow/10000)
-) +
-  
- # geom_point(size = 4, colour = factor(hedges), shape = 15) +
- # geom_point(size = 4, colour = c(my_purple, my_watergreen, my_yellow), shape = c(15,19,17)) +
+      alpha = bae_pow/10000) 
+  ) +
   
   geom_line(size = 7, linejoin = "round") + 
   geom_point(size = 8, fill = "white", alpha = 1, show.legend = FALSE) +
-  
   geom_point(size = 8, show.legend = FALSE) + 
+  
   scale_fill_manual(values = c(my_yellow, my_watergreen, my_purple), guide = FALSE) + 
   scale_colour_manual(values = c(my_yellow, my_watergreen, my_purple), guide = FALSE) + 
   scale_shape_manual(values = c(22,21,24), guide = FALSE) +
   scale_alpha(range = c(0.3, 0.9), name = "Power:") +
+  
   geom_point(size = 8, colour = "black", alpha = 1, fill = NA) +
-  facet_grid(my_y_cat ~ my_cat, scales = "free", space = "free") + 
+  
+  facet_grid(my_y_cat ~ my_x_cat, scales = "free", space = "free") + 
+  
   scale_x_continuous(trans = "pseudo_log", 
                      breaks = c(0,10,20,50,100,200)) + 
   scale_y_continuous(trans = "pseudo_log", 
                      breaks = c(0,20,40,80,120,600, 750)) + 
-  geom_point(data = current, aes(x = n_prior, y = n_tot), colour = "red", size = 8, shape = 18, alpha = 1) +
-  geom_text(data = my_text, aes(x = n_prior, y = n_tot, label = lab), colour = "black", alpha = 1) +
+  
+  geom_point(data = current, aes(x = n_prior, y = n_tot), 
+             colour = "red", size = 8, shape = 18, alpha = 1) +
+  geom_text(data = my_text, aes(x = n_prior, y = n_tot, label = lab), 
+            colour = "black", alpha = 1) +
+  
   xlab(expression(paste(N[prior], italic(" (log scale)")))) +
   ylab(expression(paste(N[total], " = ", N[exp], "+", N[con], italic(" (log scale)")))) +
-   my_theme + 
+  
+  my_theme + 
   theme(legend.position = c(0.97,0.9),
         legend.title.align = 0.5,
         legend.direction = "vertical",
         legend.background = element_rect(color = "black"),
-     #   legend.text = element_blank(),
         legend.spacing.x = unit(0,"cm")) -> repair_plot
 
 
