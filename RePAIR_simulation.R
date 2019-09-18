@@ -57,9 +57,13 @@ for (i in c(1:nrow(dat))) {
     # Sampling from posterior
     ## Control
     c_prior_par <- find_prior_par(n_exp = dat[i,]$n_prior, 
-                            mean_exp = 0, 
-                            s2_exp = 1, 
-                            belief = 1)
+                                  mean_exp = 0, 
+                                  s2_exp = 1, 
+                                  belief = 1)
+    if (dat[i,]$n_prior == 0) {
+      c_prior_par[1,] <- c(0,0,0,1,0)
+    }
+    
     
     c_post_par <- find_post_par(n_exp = dat[i,]$n_c,
                                 mean_exp = dat[i,]$mean_c,
@@ -98,7 +102,7 @@ for (i in c(1:nrow(dat))) {
 }
 
 #write.csv(dat, file = "sim_prior_cor.csv")
-dat <- read.csv("sim_prior.csv") ## old one
+#dat <- read.csv("sim_prior.csv") ## old one
 
 dat <- read.csv("sim_prior_cor.csv")
 
