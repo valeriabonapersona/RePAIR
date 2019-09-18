@@ -4,15 +4,23 @@ source("RePAIR_functions.R")
 set.seed(8709)
 
 # Datasets ----------------------------------------------------------------
-limits <- read.csv("limits_means_02.csv")
-sens <- read.csv("sim_prior.csv")
+limits <- read.csv("limits_means_02.csv") # from RePAIR_prior.R
+sens <- read.csv("sim_prior_cor.csv") # from RePAIR_simulation.R
 
 
 # Sensitivity -------------------------------------------------------------
-# Defined from limits dataset
-n_prior <- c(10,20,50,100,200)
-mean_prior <- c(0, .05, 0.1, 0.3, 0.5, -.05, -0.1, -0.3, -0.5) # population mean = 0, values after normalization and 10x sampling from population papers
-##add 0.9?
+# Limits dataset: variation in relacs and lit controls
+# population mean = 0, values after normalization and 10x sampling from population papers
+
+## add n_prior 0 and 200 for similarity with simulation study (RePAIR_simulation.R)
+limits[nrow(limits) + 1,
+       c("X0.25", "X0.75", "number_anim")]<- c(0,0,0)
+limits[nrow(limits) + 1,
+       c("X0.25", "X0.75", "number_anim")]<- c(-0.1,0.1,200)
+
+
+mean_prior <- abs(c(limits$X0.25, limits$X0.75))
+mean_prior <- unique(c(mean_prior * -1, mean_prior))
 
 # dataset preparation
 sens <- sens %>% 
@@ -21,9 +29,19 @@ sens <- sens %>%
   mutate(mean_c = NA, s2_c = NA, mean_e = NA, s2_e = NA) %>%
   tidyr::crossing(mean_prior) 
 
+# select biologically relevant
+sens <- data.frame(sens,
+                   limits[match(sens$n_prior, limits$number_anim),
+                          c("X0.25","X0.75")]) 
+
+sens$relevant <- ifelse(sens$mean_prior >= sens$X0.25 & 
+                          sens$mean_prior <= sens$X0.75, 
+                        "yes", "no")  ## do this up and then run simulation
+
+sens <- sens[sens$relevant == "yes",]
 
 #simulation
-sens$bae_pow_bad <- NA
+sens$bae_pow_sens <- NA
 
 n_sim <- 10000
 n_sam <- 10000 # sampled from posterior
@@ -55,6 +73,10 @@ for (i in c(1:nrow(sens))) {
                                   mean_exp = sens[i,]$mean_prior, 
                                   s2_exp = 1, 
                                   belief = 1)
+    
+    if (sens[i,]$n_prior == 0) {
+      c_prior_par[1,] <- c(0,0,0,1,0)
+    }
     
     c_post_par <- find_post_par(n_exp = sens[i,]$n_c,
                                 mean_exp = sens[i,]$mean_c,
@@ -88,53 +110,78 @@ for (i in c(1:nrow(sens))) {
     
   }
   
-  sens[i,]$bae_pow_bad <- n_sim - sum(contains_zero)
+  sens[i,]$bae_pow_sens <- n_sim - sum(contains_zero)
   
 }
 
 
 #write.csv(sens, file = "sim_sensitivity.csv")
-write.csv(sens, file = "sim_sensitivity_cor.csv")
+#write.csv(sens, file = "sim_sensitivity_cor.csv")
 
 #sens <- read.csv("sim_sensitivity.csv") ##old
 
+sens <- read.csv("sim_sensitivity_cor.csv") ##new
 
 
 
 
 
 # Visualization sensitivity -----------------------------------------------
-
-limits[nrow(limits) + 1,
-      c("X0.25", "X0.75", "number_anim")]<- c(-0.1,0.1,200)
-limits[nrow(limits) + 1,
-       c("X0.25", "X0.75", "number_anim")]<- c(0,0,0)
-
-sens <- data.frame(sens,
-                   limits[match(sens$n_prior, limits$number_anim),
-                                c("X0.25","X0.75")]) 
-
-sens$yes <- ifelse(sens$mean_prior >= sens$X0.25 & sens$mean_prior <= sens$X0.75, "yes", "no")  ## do this up and then run simulation
+sens$my_x_cat <- ifelse(sens$n_prior == 0, "No prior", "With RePAIR")
+sens$my_alpha_cat <- ifelse(sens$mean_prior == 0, "Perfect estimation",
+                       ifelse(sens$mean_prior == sens$X0.25 | 
+                                sens$mean_prior == sens$X0.75, "Sensitivity variation (0.25-0.75 quantile)", NA))
+current <- data.frame(n_prior = 100, 
+                      my_x_cat = "With RePAIR", 
+                      bae_pow_sens = 0.23, 
+                      lab = "Current median prospective power")
 
 sens %>%
-  filter(yes != "no", abs(mean_prior)!= 0.05 ) %>%
-  ggplot(aes(x = as.factor(n_prior), y = bae_pow_bad/10000)) +
-  ylim(0,1.1) + 
-  # scale_x_continuous(trans = "pseudo_log",
-  #                    breaks = c(10,20,50,100,200),
-  #                    limits = c(10,200)) +  
-  geom_line(aes(group = n_prior,size = 0.3)) +
-  geom_point(aes(colour = factor(mean_prior == 0.0), 
-                 #shape = factor(abs(mean_prior)), 
-                 alpha = -abs(mean_prior), size = 1)) +
-  geom_hline(yintercept = 0.8) +
+  filter(my_alpha_cat != "NA") %>%
+  ggplot(aes(x = n_prior, y = bae_pow_sens/10000)) +
+  xlab(expression(paste(N[prior], italic(" (log scale)")))) +
+  ylab(expression(paste(italic("Prospective"), " power"))) +
+  facet_grid(~ my_x_cat, scales = "free", space = "free") + 
+  
+  scale_y_continuous(breaks = c(0,0.2,0.5,0.8,1),
+                     labels = c("0","20%","50%","80%","100%"), 
+                     limits = c(0,1)) +
+  scale_x_continuous(trans = "pseudo_log", 
+                     breaks = c(0,10,20,50,100,200)) + 
+  geom_hline(yintercept = 0.8, colour = "darkgreen") +
   #geom_hline(yintercept = 0.5, size = 0.5, linetype = "dotted") + 
   geom_hline(yintercept = 0.2, size = 0.5, linetype = "dotted", colour = "red") + 
-  
+  geom_line(aes(group = n_prior, size = 0.3)) +
+  geom_point(aes(colour = my_alpha_cat,
+    #colour = fct_rev(factor(mean_prior == 0.0)), 
+                 #shape = factor(abs(mean_prior)), 
+                 #alpha = my_alpha_cat, 
+     size = 1)) +
+  geom_text(data = current, aes(x = n_prior, y = bae_pow_sens, label = lab), 
+            colour = "red", alpha = 1) +
   my_theme + 
-  scale_color_viridis(discrete = TRUE) + theme(legend.position = "none") ->sensit
-# svg(filename = "figures/sensit_02.svg")
-# sensit
-# dev.off()
+ # scale_alpha_discrete(range = c(0.5,1), name = expression(paste("Variation sensitivity ", italic("Hedge's G"), ":")))+ 
+  scale_color_manual(values = c(my_watergreen, my_watergreen_light), 
+                     name = "Estimation population mean") + 
+  theme(legend.position = c(0.5,0.1),
+        legend.title.align = 0.5,
+      #  legend.direction = "vertical",
+        legend.background = element_rect(color = "black"),
+        legend.spacing.x = unit(0,"cm")) +
+  guides(size = FALSE, 
+         colour = guide_legend(direction = "horizontal"))  -> sensit
 
-saveRDS(sensit, file = "figures/sensitivity.rds")
+
+## layout with grid
+gt_sensit <- ggplotGrob(sensit)
+
+# remove right facet
+# change size facets
+gt_sensit$widths[5] <- unit(0.4,"null")
+
+# change size breaks axes
+gt_sensit$widths[6] <- unit(30,"pt")
+
+grid.draw(gt_sensit)
+
+#saveRDS(gt_sensit, file = "figures/sensitivity.rds")
