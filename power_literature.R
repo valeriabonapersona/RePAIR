@@ -1,6 +1,12 @@
-## The power file
-### TO DO
-## make graph theor power as function
+## Script: "Statistical power in preclinical (rodent) literature"
+
+## accompanying manuscript: 
+## "RePAIR: a power solution to animal experimentation"
+
+## Author: Valeria Bonapersona
+## contact: v.bonapersona-2 (at) umcutrecht.nl
+
+## Last update: Oct. 28th, 2019
 
 # Environment -------------------------------------------------------------
 source("RePAIR_functions.R")
@@ -8,7 +14,7 @@ source("RePAIR_functions.R")
 
 # Download datasets from osf -----------------------------------------------------------------
 # OSF connection
-#OSF_PAT <- "my_token_name" ##CHANGE THIS BEFORE IT BECOMES PUBLIC
+# OSF_PAT <- "my_token_name" ##CHANGE THIS BEFORE IT BECOMES PUBLIC
 # OSF_PAT <- "BAcJNLrL90DqkfNJUBMOZuKieUmg3WTVhltI6xE2Pk3BnCl6ALSq1kvVSK7y7kWsSmaBAy"
 # 
 # osf_auth(OSF_PAT)
@@ -23,20 +29,21 @@ source("RePAIR_functions.R")
 #     osf_ls_files(n_max = 20) %>%
 #     filter(name == d) %>%
 #     osf_download(overwrite = TRUE)
-#   
+# 
 # }
 
 # Import datasets ---------------------------------------------------------
-dat <- read.csv("meta_n.csv")
-meta <- read.csv("meta_effectsize.csv")
+dat <- read.csv("meta_n.csv") # corresponds to "Data A" in manuscript (Fig. S1)
+meta <- read.csv("meta_effectsize.csv") # corresponds to "Data B" in manuscript (Fig. S2)
 
 
-# Achieved power ----------------------------------------------------------
+# Achieved power (Fig. 1-A, Fig. S2) ----------------------------------------------------------
 # Calculate power achieved for each effect size
 power <- pwr.t2n.test(n1 = meta$n_1, n2 = meta$n_2, 
-                      d = meta$yi, sig.level = .05) ## ask Herbert
+                      d = meta$yi, sig.level = .05)
 meta$power <- power$power
-median(meta$power)
+pow_ach_text <- paste0("Currently: ", round(median(meta$power) * 100),"%")
+saveRDS(pow_ach_text, "figures/power_achieved_text.rds")
 
 # Visualization
 pow_ach <- 
@@ -46,23 +53,25 @@ pow_ach <-
   geom_vline(xintercept = median(meta$power), color = my_watergreen, 
              linetype = "dashed", size = 1.5) +
   my_theme + 
-  std_fill + 
+  std_fill +
+  scale_x_continuous(breaks = c(0,0.2,0.5,0.8,1.0), 
+                     labels = c("0%", "20%", "50%", "80%", "100%")) +
   theme(legend.position = "none")
 
-#saveRDS(pow_ach, "figures/power_achieved.rds")
+## Main text (Fig. 1-A)
+pow_ach_main <- pow_ach +  
+  annotate("text", x=0.25, y=500, label=pow_ach_text, color = my_watergreen, fontface = "bold", hjust = 0)
+saveRDS(pow_ach_main, "figures/power_achieved.rds")
 
-pow_ach_fields <- pow_ach +
-  facet_grid(~study) + 
-  scale_x_continuous(breaks = c(0,0.2,0.5,0.8,1.0), 
-                     labels = c("0%", "20%", "50%", "80%", "100%"))
+## Supplementary (Fig. S2)
+pow_ach_fields <- pow_ach + 
+  facet_grid(~study)
+saveRDS(pow_ach_fields, "figures/supp_power_achieved_fields.rds")
 
-
-#saveRDS(pow_ach_fields, "figures/supp_power_achieved_fields.rds")
-
-
-
-# Animals used -----------------------------------------------------------
+# Animals used (Fig. 1-B) -----------------------------------------------------------
 median(dat$n_t)
+total_n_text <- paste0("Median ", median(dat$n_t)/2,"/group")
+saveRDS(total_n_text, "figures/total_n_text.rds")
 
 total_n <- ggplot(dat, aes(x = n_t, fill = TRUE)) +
   geom_histogram(colour = "black", bins = my_bin) +
@@ -72,31 +81,23 @@ total_n <- ggplot(dat, aes(x = n_t, fill = TRUE)) +
                      breaks = c(0,10,20,50,150,500)) +
   geom_vline(xintercept = median(dat$n_t), color = my_watergreen, 
              linetype = "dashed", size = 1.5) +
+  annotate("text", x=25, y=249, label=total_n_text, color = my_watergreen, fontface = "bold", hjust = 0) +
   my_theme + std_fill + 
   theme(legend.position = "none")
 
-#saveRDS(total_n, file = "figures/total_n.rds")
-
-# over time ####REMOVE?
-dat %>%
-  filter(year >= 1985) %>%
-  ggplot(aes(x = factor(year), y = n_t)) + 
-  geom_boxplot() + 
-#  geom_hline(yintercept = c(6,10)) + 
-  my_theme 
+saveRDS(total_n, file = "figures/total_n.rds")
 
 
 # Estimation effect size range --------------------------------------------
-# Effect size achieved
+# Range effect sizes
 all_es <- (floor(quantile(abs(meta$yi), probs = c(0.25,0.5,0.75))*10))/10
 
-## see other file for other method to calculate it
-
-# Visualization
+# Visualization (Fig. S3)
 effect_sizes <- 
   ggplot(meta, aes(x = abs(yi), fill = TRUE)) + 
   geom_histogram(colour = "black", bins = my_bin) +
   xlab(expression(paste("Hedge's G ", italic("(log scale)")))) + ylab("Number of publications") +
+  ylab("Number of effect sizes") +
   scale_x_continuous(trans = "pseudo_log",
                      breaks = c(0,0.2,0.5,0.9,1.5,3,7, 20)) +
   geom_vline(xintercept = as.numeric(all_es), color = c(my_purple, my_watergreen, my_yellow), 
@@ -105,11 +106,8 @@ effect_sizes <-
   std_fill +
   theme(legend.position = "none")
 
-# svg(filename = "figures/supp_effectsizes_achieved.svg")
-#   effect_sizes
-# dev.off()
+saveRDS(effect_sizes, "figures/supp_effect_size_range.rds")
 
-#saveRDS(effect_sizes, "figures/supp_effect_size_range.rds")
 
 # Theoretical power with prior --------------------------------------------
 ## Preparation dataset
@@ -119,9 +117,12 @@ dat_theor <- dat %>%
   mutate(eff_size = rep(all_es, each = nrow(dat)))
 
 # for each prior effect size
-priors <- c("no", "rean_1", "rean_03", "redi_1", "redi_03")
+priors <- c("no", # no prior
+            "redi_1", # redistributed resources, index = 1
+            "redi_03" # redistributed resources, index = 0l3
+            )
 dat_theor <- dat_theor %>% 
-  bind_rows(dat_theor, dat_theor, dat_theor, dat_theor) %>%
+  bind_rows(dat_theor, dat_theor) %>%
   mutate(prior_type = rep(priors, each = nrow(dat_theor))) %>%
   mutate(n_2 = ifelse(prior_type %in% c("redi_1", "redi_03"), 
                       n_t / 3 * 2, n_2)) %>%
@@ -131,8 +132,6 @@ dat_theor <- dat_theor %>%
   mutate(
     prior_n = case_when(
       prior_type == "no" ~ 0,
-      prior_type == "rean_1" ~ sum(n_1) - n_1,
-      prior_type == "rean_03" ~ sum(n_1) * 0.3 - n_1,
       prior_type == "redi_1" ~ sum(n_t),
       prior_type == "redi_03" ~ sum(n_t) * 0.3,
     )
@@ -147,13 +146,14 @@ pow <- pwr.t2n.test(n1 = dat_theor$n_1_tot,
                     sig.level = .05)
 dat_theor$theor_pow <- pow$power
 
-## Visualization
+## Visualization (Fig. 1-C, Fig. 2-C, Fig. S5)
 # Find maximum value of density
 densMax <- dat_theor %>% 
   filter(prior_type == "no") %>%
   group_by(eff_size) %>%
   summarise(dens = max(density(theor_pow)[["y"]])) %>%
   filter(dens == max(dens))
+saveRDS(densMax, file = "figures/Fig01_densMax.rds")
 
 # Find maximum value of bin count
 countMax <- dat_theor %>% 
@@ -165,6 +165,7 @@ countMax <- dat_theor %>%
   summarise(count=n()) %>% 
   ungroup() %>% filter(count==max(count))
 
+saveRDS(countMax, file = "figures/Fig01_countMax.rds")
 
 for (each in levels(factor(dat_theor$prior_type))) {
   
