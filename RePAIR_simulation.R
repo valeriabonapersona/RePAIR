@@ -1,11 +1,21 @@
-## The How Does RePAIR work file
+## Script: "RePAIR simulation study: relationship between prior, sample size and power"
+
+## accompanying manuscript: 
+## "RePAIR: a power solution to animal experimentation"
+
+## Author: Valeria Bonapersona
+## contact: v.bonapersona-2 (at) umcutrecht.nl
+
+## Last update: Oct. 28th, 2019
 
 # Environment -------------------------------------------------------------
 source("RePAIR_functions.R")
 
-
 # N for power 0.8 ----------------------------------------------------
-# dataset - all combinations
+# factors varying in the simulation are explained in Table S2 of the manuscript
+# _c = control, _e = experimental
+# n_ = sample size, sd_ = standard deviation, s2 = variance, pow = power
+
 dat <- expand.grid(
   "hedges"      = c(.2, .5, .9),
   "sd_ec_ratio" = c(1, 2),
@@ -20,25 +30,25 @@ dat$n_tot <- dat$n_c + dat$n_e
 # Bayesian power -------------------------------------------------------
 # Parameters chosen to keep power at least at 80%.
 
-# Parameters population
-dat$p_mean_c <- 0
-dat$p_sd_c <- 1
+# Population parameters (p_)
+dat$p_mean_c <- 0 # µ
+dat$p_sd_c <- 1 # standard deviation (sd)
 dat$p_sd_e <- dat$p_sd_c * dat$sd_ec_ratio
-dat$p_sd_pooled <- sqrt(((dat$p_sd_e)^2 + (dat$p_sd_c)^2)/2) ## explanation from formula paper
-dat$p_mean_e <- dat$p_mean_c + (dat$p_sd_pooled * dat$hedges) # from hedges G definition
+dat$p_sd_pooled <- sqrt(((dat$p_sd_e)^2 + (dat$p_sd_c)^2)/2) 
+dat$p_mean_e <- dat$p_mean_c + (dat$p_sd_pooled * dat$hedges) 
 
-# Parameters experiment
-dat[, c("mean_c", "mean_e", "s2_c", "s2_e", "bae_pow")] <- NA
+# Parameters experiment 
+dat[, c("mean_c", "mean_e", "s2_c", "s2_e", "repair_pow")] <- NA 
 
 #simulation
-n_sim <- 10000
-n_sam <- 10000
+n_sim <- 10000 # datasets simulated
+n_sam <- 10000 # samples drawn
 
 for (i in c(1:nrow(dat))) {
   print(i)
   
   # Create variable for output
-  contains_zero <- FALSE #how often does the 95%CI contain zero? expected 20%
+  contains_zero <- FALSE # how often does the 95%CI contain zero? expected 20%
   
   # Simulation loop
   for (sim in c(1:n_sim)) {
@@ -97,14 +107,12 @@ for (i in c(1:nrow(dat))) {
     
   }
   
-  dat[i,]$bae_pow <- n_sim - sum(contains_zero)
+  dat[i,]$repair_pow <- n_sim - sum(contains_zero)
   
 }
 
-#write.csv(dat, file = "sim_prior_cor.csv")
-#dat <- read.csv("sim_prior.csv") ## old one
-
-dat <- read.csv("sim_prior_cor.csv")
+#write.csv(dat, file = "sim_prior.csv")
+dat <- read.csv("sim_prior.csv")
 
 # Visualization RePAIR ----------------------------------------------------
 #dat <- read.csv("/Users/vbonape2/surfdrive/Work/PhD/nStat/n_stat_git/sim_prior_power.csv")
@@ -116,20 +124,20 @@ current <- data.frame(hedges = 0.9,
                       n_tot = 20, 
                       my_x_cat = "No prior", 
                       my_y_cat = "small", 
-                      bae_pow = 1)
+                      repair_pow = 1)
 my_text <- data.frame(hedges = c(0.2,0.5,0.9),
                       n_prior = rep(160,3), 
                       n_tot = c(605, 72, 25), 
                       my_x_cat = rep("With RePAIR",3), 
                       my_y_cat = c("large","small", "small"), 
-                      bae_pow = rep(1,3), 
+                      repair_pow = rep(1,3), 
                       lab = c("Hedge's G = 0.2", "Hedge's G = 0.5", "Hedge's G = 0.9"))
 
 ggplot(
   dat[dat$sd_ec_ratio != 2,], 
   aes(x = n_prior, y = n_tot, 
       colour = factor(hedges), fill = factor(hedges), shape = factor(hedges), 
-      alpha = bae_pow/10000) 
+      alpha = repair_pow/10000) 
   ) +
   
   geom_line(size = 7, linejoin = "round") + 
@@ -188,6 +196,5 @@ gt_repair$heights[9] <- unit(30, "pt")
 
 grid.draw(gt_repair)
 
-#saveRDS(RePAIR_sim, file = "figures/RePAIR_sim.rds")
 saveRDS(gt_repair, file = "figures/gt_repair.rds")
 
