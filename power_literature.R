@@ -11,26 +11,8 @@
 # Environment -------------------------------------------------------------
 source("RePAIR_functions.R")
 
-
-# Download datasets from osf -----------------------------------------------------------------
-# OSF connection
-# OSF_PAT <- "my_token_name" ##CHANGE THIS BEFORE IT BECOMES PUBLIC
-# OSF_PAT <- "BAcJNLrL90DqkfNJUBMOZuKieUmg3WTVhltI6xE2Pk3BnCl6ALSq1kvVSK7y7kWsSmaBAy"
-# 
-# osf_auth(OSF_PAT)
-# project <- osf_retrieve_node("wvs7m")
-# 
-# datasets <- c("meta_n.csv", "meta_effectsize.csv")
-# 
-# # Download
-# for (d in datasets) {
-#   print(d)
-#   project %>%
-#     osf_ls_files(n_max = 20) %>%
-#     filter(name == d) %>%
-#     osf_download(overwrite = TRUE)
-# 
-# }
+# make sure you have downloaded relevant datasets!
+# see download_data.R 
 
 # Import datasets ---------------------------------------------------------
 dat <- read.csv("meta_n.csv") # corresponds to "Data A" in manuscript (Fig. S1)
