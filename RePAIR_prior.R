@@ -1,45 +1,38 @@
-## The RePAIR prior
+## Script: "Variation in prior selection due to random sampling"
+
+## accompanying manuscript: 
+## "RePAIR: a power solution to animal experimentation"
+
+## Author: Valeria Bonapersona
+## contact: v.bonapersona-2 (at) umcutrecht.nl
+
+## Last update: Oct. 28th, 2019
 
 # Environment -------------------------------------------------------------
 source("RePAIR_functions.R")
 set.seed(8709)
 
-
-# # Download datasets from osf -------------------------------------------------------
-# OSF connection
-#OSF_PAT <- "my_token_name" ##CHANGE THIS BEFORE IT BECOMES PUBLIC
-#OSF_PAT <- "BAcJNLrL90DqkfNJUBMOZuKieUmg3WTVhltI6xE2Pk3BnCl6ALSq1kvVSK7y7kWsSmaBAy"
-
-# osf_auth(OSF_PAT)
-# project <- osf_retrieve_node("xj6yb")
-# 
-# # Download
-# project %>%
-#   osf_ls_files(n_max = 20) %>%
-#   filter(name == "n_stat_data.csv") %>%
-#   osf_download(overwrite = TRUE)
-# 
-# project %>%
-#   osf_ls_files(n_max = 20) %>%
-#   filter(name == "prior_control_literature.xlsx") %>%
-#   osf_download(overwrite = TRUE)
-
-
-
+## first download datasets with download_data.R
 
 # Import datasets ---------------------------------------------------------
-relacs <- read.csv("n_stat_data.csv") # criteria: adult males OL task, >1h retention (both short and long), controls >50%, novel_exp >0
+relacs <- read.csv("RELACS_anonymized_blinded.csv") # criteria: adult males OL task, >1h retention (both short and long), controls >50%, novel_exp >0
 relacs <- relacs %>% select(-contains("X"))
-prior <- read_excel("prior_control_literature.xlsx")
+prior <- read.csv("RELACS_prior_control_literature.csv")
 
 # Preparation datasets
 prior$sd <- prior$sem * sqrt(prior$N)
 prior$var <- prior$sd^2
 prior$prior <- "lit"
 
+# remove blinding - analysis was conducted blinded to experimental condition
+## e = early life adversity (experimental group), c = control
+relacs$control_or_ELA_animal <- recode(relacs$control_or_ELA_animal, 
+                                       P = "e", L = "c")
+
 ## Merge
 prior$contact <- as.factor(paste(prior$author, prior$year, sep = "_"))
-relacs %>% filter(control_or_ELS_animal == "L") %>%
+relacs %>% 
+  filter(control_or_ELA_animal == "c") %>%
   group_by(contact) %>%
   summarize(mean = mean(di), 
             N = length(di)) %>%
@@ -49,7 +42,8 @@ all %>%
    mutate(belief = ifelse(!contact %in% 
                             all[duplicated(all$contact),]$contact, 1, 0.5),
           N_cor = belief * N) -> all
-# Variation control groups ------------------------------------------------
+
+# Variation control groups - Fig. S4-A------------------------------------------------
 est_mean <- 
   all %>% 
   group_by(prior) %>% 
@@ -60,7 +54,7 @@ est_mean <-
 pop_control <-
   all %>% 
   ggplot(aes(x = mean, fill = TRUE)) +
-  xlim(0,1)+ 
+  xlim(0.4,.8)+ 
   xlab("Discrimination Index") + ylab("Density") +
   geom_vline(xintercept = mean(all$mean), colour = "red") +
   facet_grid(prior ~.) +
@@ -80,12 +74,11 @@ saveRDS(pop_control, file = "figures/pop_control.rds")
 
 # Simulation estimation pop mean ------------------------------------------
 ## How many experiments would I need to approximate the population mean?
-all$mean <- ((all$mean - mean(all$mean)) / sd(all$mean)) #tryout standardization
+all$mean <- ((all$mean - mean(all$mean)) / sd(all$mean)) # standardization
 
-
-## How many papers to I need to have the mean between .61 and .63?
 sim_means <- as.data.frame(cbind(rep(2:14, each = 10000), NA, NA, NA))
 names(sim_means) <- c("number", "ave", "N", "N_cor")
+
 for (many in c(1:nrow(sim_means))) {
   selected <- sample.int(14, sim_means$number[many])
   sim_means$ave[many] <- mean(all$mean[selected])
@@ -94,15 +87,14 @@ for (many in c(1:nrow(sim_means))) {
   
 }
 
-#write.csv(sim_means, "sim_means_controls.csv")
+write.csv(sim_means, "sim_means_controls.csv")
 sim_means <- read.csv("sim_means_controls.csv")
-plot(sim_means$N ~ sim_means$number)
-plot(sim_means$N_cor ~ sim_means$number)
 
-## variation mean by number of papers selected
+
+## variation mean by number of papers selected - Fig. S4-B
 sim_means %>%
   filter(number != 14) %>%
-  #group_by(number) %>%
+  group_by(number) %>%
   summarize("0.025" = quantile(ave, probs = 0.025), 
             "0.25"  = quantile(ave, probs = 0.25), 
             "0.5"   = quantile(ave, probs = 0.5), 
@@ -111,48 +103,25 @@ sim_means %>%
   gather(key = type, value = quant, -number) -> sim_means_quant
 
 
-sim_means_quant$type_cor <- ifelse(sim_means_quant$type %in% c("0.025", "0.975"),
-                                   "quantile", 
-                                   ifelse(sim_means_quant$type == "0.5", "median", "quartile"))
-
-
 sim_means_quant %>%
-  filter(type_cor == "quartile") %>%
+  filter(type %in% c("0.25", "0.75")) %>%
   arrange(number) %>%
   arrange(-quant) %>%
   ggplot(aes(x = quant, y = number)) +
   geom_point() +
   geom_vline(xintercept = 0, colour = "grey") + 
-  geom_vline(xintercept = c(-0.5, 0.5), colour = my_purple, linetype="dashed") + 
-  geom_vline(xintercept = c(-0.3, 0.3), colour = my_watergreen, linetype="dashed") +
-  geom_vline(xintercept = c(-0.1, 0.1), colour = my_yellow, linetype="dashed") +
-  # geom_text(label = "0.5", aes(y = 14, x = 0.55), colour = a) + 
-  # geom_text(label = "-0.5", aes(y = 14, x = -0.55), colour = a) + 
-  # geom_text(label = "0.3", aes(y = 14, x = 0.35), colour = b) + 
-  # geom_text(label = "-0.3", aes(y = 14, x = -0.35), colour = b) +     
-  # geom_text(label = "0.1", aes(y = 14, x = 0.15), colour = c) + 
-  # geom_text(label = "-0.1", aes(y = 14, x = -0.15), colour = c) + 
   geom_polygon(fill = viridis(option = "C",n=1), alpha = 0.2) +
   my_theme + 
   scale_x_continuous(breaks = c(-0.5,-0.3,-0.1,0,0.1,0.3,0.5)) +
   xlab("Variation from real control population mean") +
-  ylab("Number of studies") +
-  geom_segment(aes(y= 10, yend=10, x=0, xend=-0.5), 
-               size = 0.5, colour = viridis(option = "A", n=10)[7],
-               arrow = arrow(length = unit(0.1, "inches"))) +
-  geom_segment(aes(y=10, yend=10, x=0, xend=0.5), 
-               size = 0.5, colour = viridis(5)[4],
-               arrow = arrow(length = unit(0.1, "inches"))) -> sensitivity
+  ylab("Number of studies") -> sensitivity
 
-# svg(filename = "figures/supp_sensitivity_02.svg")
-# sensitivity
-# dev.off()
-
-saveRDS(sensitivity, file = "pop_means_variation.rds")
+saveRDS(sensitivity, file = "pop_means_variation.rds") # Fig S4-B
 
 ## variation mean by N selected (by selecting papers)
+## ranges selected by keeping length similar
 sim_means$N_group <- ifelse(sim_means$N %in% c(9:11), "10", 
-                            ifelse(sim_means$N %in% c(17:25), "20",
+                            ifelse(sim_means$N %in% c(16:27), "20",
                                    ifelse(sim_means$N %in% c(47:53), "50",
                                           ifelse(sim_means$N %in% c(97:103), "100",
                                                  ifelse(sim_means$N %in% c(196:204), "200",
@@ -160,7 +129,7 @@ sim_means$N_group <- ifelse(sim_means$N %in% c(9:11), "10",
 
 sim_means %>%
   filter(N_group != "NA") %>%
-  mutate(N_group = as.numeric(N_group)) %>%
+  mutate(N_group = as.numeric(as.character(N_group))) %>%
   group_by(N_group) %>%
   summarize("how_many" = length(ave),
             "0.025"    = quantile(ave, probs = 0.025),
@@ -170,8 +139,6 @@ sim_means %>%
             "0.975"    = quantile(ave, probs = 0.975)) %>%
   gather(key = type, value = quant, -c(N_group, how_many)) -> sens_based_N
 
-
-
 ## for sensitivity analysis
 sim_means_quant %>%
   filter(type %in% c("0.25", "0.75")) %>%
@@ -180,31 +147,27 @@ sim_means_quant %>%
   spread(key = type, value = quant_round) %>%
   mutate(number_anim = number * 10) -> limits_means
 
-#write.csv(limits_means, "limits_means_02.csv")
+write.csv(limits_means, "limits_means.csv")
 
+
+# Fig. S4-C
 ex_dist <- 
-ggplot(NULL, aes(c(-5,10))) +
-  geom_area(stat = "function", fun = dnorm, args = list(mean = -1, sd = 1), fill = my_yellow, xlim = c(-4, 10)) +
-  geom_area(stat = "function", fun = dnorm, args = list(mean =  3, sd = 1), fill = my_watergreen_light, xlim = c(-4, 10)) +
-  geom_area(stat = "function", fun = dnorm, args = list(mean =  5, sd = 1), fill = my_watergreen, xlim = c(-4, 10)) +
-  geom_area(stat = "function", fun = dnorm, args = list(mean =  7, sd = 1), fill = my_watergreen_light, xlim = c(-4, 10)) +
-  geom_segment(aes(y= 0.4, yend=0.4, x=5, xend=3), 
-               size = 0.5, colour = viridis(option = "A", n=10)[7],
-               arrow = arrow(length = unit(0.1, "inches"))) +
-  geom_segment(aes(y=0.4, yend=0.4, x=5, xend=7), 
-               size = 0.5, colour = viridis(5)[4],
-               arrow = arrow(length = unit(0.1, "inches"))) +
-  # geom_segment(aes(y= 0.2, yend=0.2, x=-1, xend=5), 
-  #              size = 0.5, linetype = 2,
-  #              arrow = arrow(length = unit(0.1, "inches"))) +
-  # geom_segment(aes(y= 0.2, yend=0.2, x=5, xend=-1), 
-  #              size = 0.5, linetype = 2,
-  #              arrow = arrow(length = unit(0.1, "inches"))) +
-  my_theme + 
-  theme(axis.title.x = element_blank(),
-        axis.title.y = element_blank(),
-        axis.text.x = element_blank(),
-        axis.text.y=element_blank(),
-        axis.ticks.x=element_blank(),
-        axis.ticks.y=element_blank())
+  ggplot(NULL, aes(c(-5,10))) +
+    geom_area(stat = "function", fun = dnorm, args = list(mean = -1, sd = 1), fill = my_yellow, xlim = c(-4, 10)) +
+    geom_area(stat = "function", fun = dnorm, args = list(mean =  3, sd = 1), fill = my_watergreen_light, xlim = c(-4, 10)) +
+    geom_area(stat = "function", fun = dnorm, args = list(mean =  5, sd = 1), fill = my_watergreen, xlim = c(-4, 10)) +
+    geom_area(stat = "function", fun = dnorm, args = list(mean =  7, sd = 1), fill = my_watergreen_light, xlim = c(-4, 10)) +
+    geom_segment(aes(y= 0.4, yend=0.4, x=5, xend=3), 
+                 size = 0.5, colour = viridis(option = "A", n=10)[7],
+                 arrow = arrow(length = unit(0.1, "inches"))) +
+    geom_segment(aes(y=0.4, yend=0.4, x=5, xend=7), 
+                 size = 0.5, colour = viridis(5)[4],
+                 arrow = arrow(length = unit(0.1, "inches"))) +
+    my_theme + 
+    theme(axis.title.x = element_blank(),
+          axis.title.y = element_blank(),
+          axis.text.x = element_blank(),
+          axis.text.y=element_blank(),
+          axis.ticks.x=element_blank(),
+          axis.ticks.y=element_blank())
 saveRDS(ex_dist, file = "figures/ex_distr.rds")
