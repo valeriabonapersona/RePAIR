@@ -1,69 +1,40 @@
-#### To do: 
-#  Double check sample_post functions with old
+## Script: "Functions"
+
+## accompanying manuscript: 
+## "RePAIR: a power solution to animal experimentation"
+
+## Author: Valeria Bonapersona
+## contact: v.bonapersona-2 (at) umcutrecht.nl
+
+## Last update: Oct. 28th, 2019
+
+
 
 # Environment preparation -------------------------------------------------
 rm(list = ls())
 
-# Packages
-## Data handling
-library(osfr)
-library(tidyverse) #should have also readxl
-library(readxl) #for xlsx
+# Install packages
+## from CRAN
+list_cran_packages <- c(
+  "tidyverse", "readxl", # data handling
+  "assertive", # functions
+  "pwr", "metafor", # for statistics
+  "ggpubr", "viridis", "grid", "gtable" # graphs
+  )
 
-## For functions
-library(assertive) 
+new_packages <- list_cran_packages[!(list_cran_packages %in% installed.packages()[,"Package"])]
+if(length(new_packages)) install.packages(new_packages)
 
-## Other stats
-require(pwr)
-## Graphs
-require(ggplot2)
-require(ggpubr)
-require(viridis)
-library(grid) # for grob
-library(gtable)
+## from Github
+if(!require(osfr)) remotes::install_github("centerforopenscience/osfr")
 
-
-# Graphics ----------------------------------------------------------------
-my_theme <- theme_classic() + 
-  theme(plot.title = element_text(face = "bold", hjust = 0.5, margin = margin(t = 20, r = 0, b = 10, l = 0)),
-        axis.title.x = element_text(hjust = 0.95),
-        axis.title.y = element_text(hjust = 0.95),
-        # axis.line.x = element_line(arrow = arrow(ends = "last", length = unit(0.1, "inches"))),
-        # axis.line.y = element_line(arrow = arrow(ends = "last", length = unit(0.1, "inches"))),
-        plot.margin = unit(c(0.5,0.5,0.5,0.5), "cm")) 
+# Load packages
+all_packages <- c(list_cran_packages, "osfr")
+library(tidyverse)
+lapply(all_packages,library, character.only = TRUE)
 
 
-std_fill <- scale_fill_viridis(discrete = TRUE, alpha = 0.2)
-std_fill_dark <- scale_fill_viridis(discrete = TRUE)
-my_purple <- viridis(5, alpha = 0.8)[1]
-my_watergreen <- viridis(5, alpha = 0.8)[3]
-my_yellow <- viridis(5, alpha = 0.8)[5]
-my_purple_light <- viridis(5, alpha = 0.01)[1]
-my_watergreen_light <- viridis(5, alpha = 0.2)[3]
-my_yellow_light <- viridis(5, alpha = 0.2)[5]
-my_bad <- "#f0d9d0"
-my_good <- "#d0f0da"
-my_bin <- 50
-my_bin_width <- my_bin / 5000
-# colours from package viridis
-# organization plots with ggpubr
-
-
-gtable_select <- function (x, ...) 
-{
-  matches <- c(...)
-  x$layout <- x$layout[matches, , drop = FALSE]
-  x$grobs <- x$grobs[matches]
-  x
-}
-gtable_stack <- function(g1, g2){
-  g1$grobs <- c(g1$grobs, g2$grobs)
-  g1$layout <- rbind(g1$layout, g2$layout)
-  g1
-}
-
-
-# Power calculation-related -----------------------------------------------
+# Power calculation-related functions -----------------------------------------------
 # outputs n smallest group (control)
 whats_nC <- function(delta, sd_ratio, n_ratio = 1, alt = "two.sided") { ##you can substitute the args of other functions as ...
   
@@ -94,7 +65,7 @@ whats_pow <- function(n_low, n_ratio) {
 
 
 
-# Bayesian analysis ----------------------------------------------------------------
+# RePAIR functions ----------------------------------------------------------------
 ## Prior parmeters
 
 find_post_par <- function(n_exp, mean_exp, s2_exp, belief, data_par = NULL) {
@@ -139,7 +110,7 @@ find_post_par <- function(n_exp, mean_exp, s2_exp, belief, data_par = NULL) {
   
   # Calculate parameters
   ## exp indicates current experiment, 0 prior, 1 posterior
-  ## equations from Gelman Ch. XX
+  ## equations from Gelman (195) Ch. 3
   n_exp_cor <- n_exp * belief
   
   mu1 <- ((k0/(k0 + n_exp_cor)) * mu0) + 
@@ -174,13 +145,11 @@ find_multiple_prior_par <- function(data_exp, n_exp, mean_exp, s2_exp, belief, #
   # Checks
   ##
   assert_is_data.frame(data_exp)
-  assert_all_are_not_na(data_exp)
-
-  my_data <- data.frame(n_exp    = data_exp[, n_exp], # is this necessary?
-                        mean_exp = data_exp[, mean_exp], 
-                        s2_exp   = data_exp[, s2_exp], 
-                        belief   = data_exp[, belief])
-
+  
+  my_data <- data.frame(data_exp[,c(n_exp, mean_exp, s2_exp, belief)])
+  names(my_data) <- c("n_exp", "mean_exp", "s2_exp", "belief")
+  
+  assert_all_are_not_na(my_data)
   
   out_par <- data.frame(t(rep(0,5)))
   names(out_par) <- c("mu0", "k0", "v0", "sigma0_2", "n0_cor")
@@ -244,3 +213,41 @@ sample_post <- function(data_par, n_sampled = 10000) {
 }
   
 
+
+# Graphics ----------------------------------------------------------------
+my_theme <- theme_classic() + 
+  theme(plot.title = element_text(face = "bold", hjust = 0.5, margin = margin(t = 20, r = 0, b = 10, l = 0)),
+        axis.title.x = element_text(hjust = 0.95),
+        axis.title.y = element_text(hjust = 0.95),
+        plot.margin = unit(c(0.5,0.5,0.5,0.5), "cm")) 
+
+
+std_fill <- scale_fill_viridis(discrete = TRUE, alpha = 0.2)
+std_fill_dark <- scale_fill_viridis(discrete = TRUE)
+my_purple <- viridis(5, alpha = 0.8)[1]
+my_watergreen <- viridis(5, alpha = 0.8)[3]
+my_yellow <- viridis(5, alpha = 0.8)[5]
+my_purple_light <- viridis(5, alpha = 0.01)[1]
+my_watergreen_light <- viridis(5, alpha = 0.2)[3]
+my_yellow_light <- viridis(5, alpha = 0.2)[5]
+my_bad <- "#f0d9d0"
+my_good <- "#d0f0da"
+my_bin <- 50
+my_bin_width <- my_bin / 5000
+# colours from package viridis
+# organization plots with ggpubr
+
+# 
+# gtable_select <- function (x, ...) 
+# {
+#   matches <- c(...)
+#   x$layout <- x$layout[matches, , drop = FALSE]
+#   x$grobs <- x$grobs[matches]
+#   x
+# }
+# gtable_stack <- function(g1, g2){
+#   g1$grobs <- c(g1$grobs, g2$grobs)
+#   g1$layout <- rbind(g1$layout, g2$layout)
+#   g1
+# }
+# 
