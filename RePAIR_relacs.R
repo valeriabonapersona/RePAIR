@@ -163,7 +163,7 @@ t(apply(post_diff,2, quantile, probs = c(0.975)))
 
 
 
-# Visualization results ---------------------------------------------------
+# Visualization results - Fig. 2-B ---------------------------------------------------
 post_c_all %>% 
   gather(key = prior, value = post_c) %>%
   bind_cols(post_e = rep(post_e, ncol(post_c_all))) %>%
@@ -240,7 +240,7 @@ post_graph %>%
           strip.background = element_rect(fill = NA),
           strip.text = element_text(colour = "black")) +
   guides(colour = FALSE, 
-         fill = guide_legend(direction = "vertical")) -> res_rep_rel
+         fill = guide_legend(direction = "vertical")) -> res_rep_rel # Fig. 2-B
 
 saveRDS(res_rep_rel, "figures/repair_results.rds")
 
