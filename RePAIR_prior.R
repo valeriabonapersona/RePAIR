@@ -47,19 +47,18 @@ est_mean <-
   group_by(prior) %>% 
   summarize(est_mean = mean(mean),
             N = sum(N)) 
-                 
+
 pop_control <-
   all %>% 
   ggplot(aes(x = mean, fill = TRUE)) +
   xlim(0.4,.8)+ 
-  xlab("Discrimination Index") + ylab("Density") +
+  xlab("Discrimination") + ylab("Population mean distribution") +
   geom_vline(xintercept = mean(all$mean), colour = "red") +
   facet_grid(prior ~.) +
   geom_text(aes(x, y, label=lab, colour = "red"),
             data = data.frame(x = 0.7, y = 12,
                               lab = round(est_mean$est_mean,3),
                               prior = est_mean$prior),vjust=1) +
-  ggtitle("Mean population estimation") +
   geom_density() + 
   my_theme + 
   std_fill + 
@@ -106,8 +105,8 @@ sim_means_quant %>%
   my_theme + 
   scale_x_continuous(breaks = c(-0.5,-0.3,-0.1,0,0.1,0.3,0.5)) +
   scale_y_continuous(breaks = c(2,5,10,15)) +
-  xlab("Variation from real control population mean") +
-  ylab("Number of studies") -> sensitivity
+  xlab(expression(paste("Variation from ", mu["con"], italic(" (Hedge's G)")))) +
+  ylab("Number of studies sampled") -> sensitivity
 
 saveRDS(sensitivity, file = "pop_means_variation.rds") # Fig S4-B
 
