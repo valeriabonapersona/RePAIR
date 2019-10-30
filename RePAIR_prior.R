@@ -37,18 +37,15 @@ relacs %>%
   summarize(mean = mean(di), 
             N = length(di)) %>%
   mutate(prior = "relacs") -> all
+
 all <- rbind(all, prior %>% select("contact", "mean", "N", "prior"))
-all %>% 
-   mutate(belief = ifelse(!contact %in% 
-                            all[duplicated(all$contact),]$contact, 1, 0.5),
-          N_cor = belief * N) -> all
 
 # Variation control groups - Fig. S4-A------------------------------------------------
+## estimation mean of population mean from literature and relacs
 est_mean <- 
   all %>% 
   group_by(prior) %>% 
   summarize(est_mean = mean(mean),
-            N_cor = sum(N_cor), 
             N = sum(N)) 
                  
 pop_control <-
@@ -73,18 +70,17 @@ saveRDS(pop_control, file = "figures/pop_control.rds")
 
 
 # Simulation estimation pop mean ------------------------------------------
-## How many experiments would I need to approximate the population mean?
+## How many experiments would I need to sufficidently approximate the population mean?
 all$mean <- ((all$mean - mean(all$mean)) / sd(all$mean)) # standardization
 
-sim_means <- as.data.frame(cbind(rep(2:14, each = 10000), NA, NA, NA))
-names(sim_means) <- c("number", "ave", "N", "N_cor")
+sim_means <- as.data.frame(cbind(rep(2:17, each = 10000), NA, NA))
+names(sim_means) <- c("number", "ave", "N")
 
 for (many in c(1:nrow(sim_means))) {
-  selected <- sample.int(14, sim_means$number[many])
+  selected <- sample.int(17, sim_means$number[many]) # sampled on the index, the lower the index the least likely you are to select this experiment
   sim_means$ave[many] <- mean(all$mean[selected])
   sim_means$N[many] <- sum(all$N[selected])
-  sim_means$N_cor[many] <- sum(all$N_cor[selected])
-  
+
 }
 
 write.csv(sim_means, "sim_means_controls.csv")
@@ -93,18 +89,14 @@ sim_means <- read.csv("sim_means_controls.csv")
 
 ## variation mean by number of papers selected - Fig. S4-B
 sim_means %>%
-  filter(number != 14) %>%
+  filter(number != 17) %>%
   group_by(number) %>%
-  summarize("0.025" = quantile(ave, probs = 0.025), 
-            "0.25"  = quantile(ave, probs = 0.25), 
-            "0.5"   = quantile(ave, probs = 0.5), 
-            "0.75"  = quantile(ave, probs = 0.75), 
-            "0.975" = quantile(ave, probs = 0.975)) %>%
+  summarize("0.25"  = quantile(ave, probs = 0.25), 
+            "0.75"  = quantile(ave, probs = 0.75)) %>%
   gather(key = type, value = quant, -number) -> sim_means_quant
 
 
 sim_means_quant %>%
-  filter(type %in% c("0.25", "0.75")) %>%
   arrange(number) %>%
   arrange(-quant) %>%
   ggplot(aes(x = quant, y = number)) +
@@ -113,19 +105,20 @@ sim_means_quant %>%
   geom_polygon(fill = viridis(option = "C",n=1), alpha = 0.2) +
   my_theme + 
   scale_x_continuous(breaks = c(-0.5,-0.3,-0.1,0,0.1,0.3,0.5)) +
+  scale_y_continuous(breaks = c(2,5,10,15)) +
   xlab("Variation from real control population mean") +
   ylab("Number of studies") -> sensitivity
 
 saveRDS(sensitivity, file = "pop_means_variation.rds") # Fig S4-B
 
+
 ## variation mean by N selected (by selecting papers)
 ## ranges selected by keeping length similar
-sim_means$N_group <- ifelse(sim_means$N %in% c(9:11), "10", 
-                            ifelse(sim_means$N %in% c(16:27), "20",
-                                   ifelse(sim_means$N %in% c(47:53), "50",
-                                          ifelse(sim_means$N %in% c(97:103), "100",
-                                                 ifelse(sim_means$N %in% c(196:204), "200",
-                                                        "NA")))))
+sim_means$N_group <- ifelse(sim_means$N %in% c(16:27), "20",
+                            ifelse(sim_means$N %in% c(47:53), "50",
+                                   ifelse(sim_means$N %in% c(97:103), "100",
+                                          ifelse(sim_means$N %in% c(196:204), "200",
+                                                 "NA"))))
 
 sim_means %>%
   filter(N_group != "NA") %>%
