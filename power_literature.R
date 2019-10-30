@@ -171,7 +171,9 @@ for (each in levels(factor(dat_theor$prior_type))) {
         geom_histogram(colour = "black", binwidth = my_bin_width, position = "identity") +
         
         facet_grid(eff_size ~., scales = "free") +
-        scale_y_continuous() +
+    
+        scale_x_continuous(breaks = c(0,0.2,0.5,0.8,1.0), 
+                           labels = c("0%", "20%", "50%", "80%", "100%")) +
         ylab("Number of publications") + 
         xlab("Prospective power") + 
         
