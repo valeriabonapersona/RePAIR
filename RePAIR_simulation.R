@@ -41,6 +41,8 @@ dat$p_mean_e <- dat$p_mean_c + (dat$p_sd_pooled * dat$hedges)
 dat[, c("mean_c", "mean_e", "s2_c", "s2_e", "repair_pow")] <- NA 
 
 #simulation
+## ATTENTION: it takes a few hours (best overnight)
+## for a quick look, change n_sim to 10 and n_sam to 1000
 n_sim <- 10000 # datasets simulated
 n_sam <- 10000 # samples drawn
 
@@ -95,15 +97,15 @@ for (i in c(1:nrow(dat))) {
                              n_sampled = n_sam)
     
     
-    # Credibility interval
-    cred_int <- e_sampled - c_sampled
+    # Confidence interval
+    conf_int <- e_sampled - c_sampled
     
     
     # Power
-    quantile(cred_int, probs = c(.025, .975))
+    quantile(conf_int, probs = c(.025, .975))
     
-    contains_zero[sim] <- 0 >= quantile(cred_int, probs = .025) &
-      0 <= quantile(cred_int, probs = .975)
+    contains_zero[sim] <- 0 >= quantile(conf_int, probs = .025) &
+      0 <= quantile(conf_int, probs = .975)
     
   }
   
