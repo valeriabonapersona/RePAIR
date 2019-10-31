@@ -114,10 +114,9 @@ for (i in c(1:nrow(dat))) {
 }
 
 #write.csv(dat, file = "sim_prior.csv")
-dat <- read.csv("sim_prior.csv")
+#dat <- read.csv("sim_prior.csv")
 
 # Visualization RePAIR ----------------------------------------------------
-#dat <- read.csv("/Users/vbonape2/surfdrive/Work/PhD/nStat/n_stat_git/sim_prior_power.csv")
 dat$my_x_cat <- ifelse(dat$n_prior == 0, "No prior", "With RePAIR")
 dat$my_y_cat <- ifelse(dat$n_tot <= 200, "small", "large")
 dat$n_tot_02 <- ifelse(dat$n_tot > 200, dat$n_tot / 100, dat$n_tot)
@@ -184,9 +183,6 @@ gt_repair$heights[7] <- unit(30, "pt")
 panels <- grep("panel", gt_repair$layout$name)
 right_facet <- unique(gt_repair$layout$b[panels])
 gt_repair <- gt_repair[, -(right_facet)]
-
-#gt_repair$heights[1] <- unit(1.5, "cm")
-#gt_repair$heights[4] <- unit(3, "cm")
 
 # change size facets
 gt_repair$widths[5] <- unit(0.4,"null")
