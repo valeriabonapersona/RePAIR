@@ -145,6 +145,7 @@ write.csv(limits_means, "limits_means.csv")
 # Fig. S4-C
 ex_dist <- 
   ggplot(NULL, aes(c(-5,10))) +
+    xlab("mean value outcome") +
     geom_area(stat = "function", fun = dnorm, args = list(mean = -1, sd = 1), fill = my_yellow, xlim = c(-4, 10)) +
     geom_area(stat = "function", fun = dnorm, args = list(mean =  3, sd = 1), fill = my_watergreen_light, xlim = c(-4, 10)) +
     geom_area(stat = "function", fun = dnorm, args = list(mean =  5, sd = 1), fill = my_watergreen, xlim = c(-4, 10)) +
@@ -156,10 +157,10 @@ ex_dist <-
                  size = 0.5, colour = viridis(5)[4],
                  arrow = arrow(length = unit(0.1, "inches"))) +
     my_theme + 
-    theme(axis.title.x = element_blank(),
+    theme(#axis.title.x = element_blank(),
           axis.title.y = element_blank(),
-          axis.text.x = element_blank(),
+         # axis.text.x = element_blank(),
           axis.text.y=element_blank(),
-          axis.ticks.x=element_blank(),
+        #  axis.ticks.x=element_blank(),
           axis.ticks.y=element_blank())
 saveRDS(ex_dist, file = "figures/ex_distr.rds")

@@ -73,9 +73,8 @@ sensit <- readRDS("figures/sensitivity.rds") #fig D
 Fig_S4 <- 
   ggarrange(
     ggarrange(pop_control, pop_means, ex_distr, ncol = 3, labels = c("A", "B", "C"), widths = c(0.8,1.2,0.8)), 
-    #sensit,
-    Fig_2C,
-    nrow = 2, 
+    sensit,
+    nrow = 2, heights = c(3,5),
     labels = c(NA, "D")
   )
 
@@ -84,7 +83,7 @@ Fig_S5 <- readRDS("figures/theor_pow_redi_1.rds")
 
 
 # Save --------------------------------------------------------------------
-figures_list <- list(fig_01 = Fig_01, fig_S2 = Fig_S2, fig_S3 = Fig_S3, 
+figures_list <- list(fig_01 = Fig_01, fig_S2 = Fig_S2,# fig_S3 = Fig_S3, 
                      fig_S4 = Fig_S4, fig_S5 = Fig_S5)
 
 for (fig in names(figures_list)) {

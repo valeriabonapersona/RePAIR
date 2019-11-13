@@ -123,6 +123,8 @@ for (i in c(1:nrow(sens))) {
   }
   
   sens[i,]$repair_pow_sens <- n_sim - sum(contains_zero)
+  x <- sens$repair_pow_sens
+  write.csv(x, file = "check_sens.csv")
   
 }
 

@@ -66,6 +66,10 @@ whats_pow <- function(n_low, n_ratio) {
 
 
 # RePAIR functions ----------------------------------------------------------------
+## Of note: in this script, we name variables as Gelman (1995) section 3.3 and 3.4.
+## For simplicity, in the related manuscript, k and v are simplified as n_prior
+## since in this particular application k = n_prior and v = n_prior
+
 ## Prior parmeters
 
 find_post_par <- function(n_exp, mean_exp, s2_exp, belief, data_par = NULL) {

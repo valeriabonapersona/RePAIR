@@ -24,7 +24,7 @@ meta <- read.csv("meta_effectsize.csv") # corresponds to "Data B" in manuscript 
 power <- pwr.t2n.test(n1 = meta$n_1, n2 = meta$n_2, 
                       d = meta$yi, sig.level = .05)
 meta$power <- power$power
-pow_ach_text <- paste0("Currently: ", round(median(meta$power) * 100),"%")
+pow_ach_text <- paste0("Median: ", round(median(meta$power) * 100),"%")
 saveRDS(pow_ach_text, "figures/power_achieved_text.rds")
 
 # Visualization
