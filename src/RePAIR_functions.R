@@ -13,25 +13,20 @@
 # Environment preparation -------------------------------------------------
 rm(list = ls())
 
-# Install packages
-## from CRAN
-list_cran_packages <- c(
-  "tidyverse", "readxl", # data handling
+# Library
+my_library <- c(
+  "osfr", "readxl", # data handling
   "assertive", # functions
   "pwr", "metafor", # for statistics
   "ggpubr", "viridis", "grid", "gtable" # graphs
   )
 
-new_packages <- list_cran_packages[!(list_cran_packages %in% installed.packages()[,"Package"])]
-if(length(new_packages)) install.packages(new_packages)
-
-## from Github
-if(!require(osfr)) remotes::install_github("centerforopenscience/osfr")
-
-# Load packages
-all_packages <- c(list_cran_packages, "osfr")
 library(tidyverse)
-lapply(all_packages,library, character.only = TRUE)
+lapply(my_library, library, character.only = TRUE)
+
+
+# Paths -------------------------------------------------------------------
+path_data <- "data/raw/"
 
 
 # Power calculation-related functions -----------------------------------------------
