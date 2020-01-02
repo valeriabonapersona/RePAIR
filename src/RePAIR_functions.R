@@ -16,9 +16,9 @@ rm(list = ls())
 # Library
 my_library <- c(
   "osfr", "readxl", # data handling
-  "assertive", # functions
+  "assertive", "docstring", # functions
   "pwr", "metafor", # for statistics
-  "ggpubr", "viridis", "grid", "gtable" # graphs
+  "ggpubr", "viridis", "grid", "gtable" # graphs,
   )
 
 library(tidyverse)
@@ -33,6 +33,20 @@ path_data <- "data/raw/"
 # outputs n smallest group (control)
 whats_nC <- function(delta, sd_ratio, n_ratio = 1, alt = "two.sided") { ##you can substitute the args of other functions as ...
   
+  #' @title Calculate sample size control group
+  #' @description Wrapper function to power_t_test() function from MESS package. 
+  #' This function extracts the calculated sample size by power_t_test() when considering 
+  #' a power of 0.8 and an alpha value of 0.05. The method of estimation is "welch".
+  #' 
+  #' 
+  #' @param delta Measure of effect size, corresponds to *delta* in power_t_test().
+  #' @param sd_ratio Ratio of standard deviation between control and experimental group.
+  #' It corresponds to sd.ratio in power_t_test().
+  #' @param n_ratio Ratio of sample size between the control and the experimental group. 
+  #' It corresponds to ratio in power_t_test(). Default value is 1, meaning equal sample sizes.
+  #' @param alt Type of hypothesis to test. Corresponds to alternative in power_t_test(). 
+  #' Default value is two sided test ("two.sided")
+  
   n_nec <- MESS::power_t_test(power = 0.8,
                               delta = delta,
                               ratio = n_ratio,
@@ -46,6 +60,16 @@ whats_nC <- function(delta, sd_ratio, n_ratio = 1, alt = "two.sided") { ##you ca
 }
 
 whats_pow <- function(n_low, n_ratio) {
+  
+  #' @title Calculate prospective power
+  #' @description Wrapper function to power_t_test() function from MESS package. 
+  #' This function extracts the power achieved given the characteristics of choice.
+  #' As default, the test in two-sided with Welch correction. The effect size considered is
+  #' 0.4, with equal standard deviation across groups. 
+  #' 
+  #' @param n_low Sample size of one of the two groups. Corresponds to n in power_t_test().
+  #' @param n_ratio Ratio of sample size between the control and the experimental group. 
+
   x <- MESS::power_t_test(n = n_low,
                           delta = 0.4,
                           ratio = n_ratio,
@@ -68,6 +92,26 @@ whats_pow <- function(n_low, n_ratio) {
 ## Prior parmeters
 
 find_post_par <- function(n_exp, mean_exp, s2_exp, belief, data_par = NULL) {
+  
+  #' @title Find posterior parameters
+  #' @description This function takes summary statistics information of an 
+  #' experimental group, and the degree of similarity (belief, number [0,1]) 
+  #' that this experiment has with the one to be conducted. 
+  #' With this information, the function outputs
+  #' posterior parameters according to Gelman's equations (1995, section 3.3 and 3.4).
+  #' 
+  #' 
+  #' @param n_exp Sample size of the group of interest.
+  #' @param mean_exp Mean of the group of interest.
+  #' @param s2_exp Variance of the group of interest.
+  #' @param belief Degree of similarity with the currently conducted experiment. 
+  #' It must be a number between 0 and 1.
+  #' @param data_par Parameters to be used instead of a uninformative prior. 
+  #' data_par must have the same structure as find_post_par output. 
+  #' @return Table with posterior paramenters. mu1 = posterior mu, 
+  #' k1 and v1 = degrees of freedom, sigma1_2 = posterior variance, 
+  #' n1_cor = weight of the experiment based on sample size and degree of similarity).
+
   
   # Checks 
   ## New variables
@@ -131,6 +175,29 @@ find_post_par <- function(n_exp, mean_exp, s2_exp, belief, data_par = NULL) {
 
 find_prior_par <- function(n_exp, mean_exp, s2_exp, belief, data_par = NULL) {
   
+  #' @title Find prior parameters
+  #' @description Wrapper function to find_post_par(). 
+  #' This function takes summary statistics information of an 
+  #' experimental group, the degree of similarity (belief, number [0,1]) 
+  #' that this experiment has with the one to be conducted.
+  #' With this information, the function outputs
+  #' prior parameters that can be used for analysis of future experiments.
+  #' 
+  #' 
+  #' @param n_exp Sample size of the group of interest.
+  #' @param mean_exp Mean of the group of interest.
+  #' @param s2_exp Variance of the group of interest.
+  #' @param belief Degree of similarity with the currently conducted experiment. 
+  #' It must be a number between 0 and 1.
+  #' @param data_par Parameters to be used instead of a uninformative prior. 
+  #' data_par must have the same structure as find_post_par output. 
+  #' @return Table with posterior paramenters. mu0 = prior mu, 
+  #' k0 and v0 = degrees of freedom, sigma0_2 = prior variance, 
+  #' n0_cor = weight of the experiment based on prior sample size and 
+  #' degree of similarity).
+  
+  
+  
   out_par <- find_post_par(n_exp = n_exp, 
                            mean_exp = mean_exp, 
                            s2_exp = s2_exp, belief = belief, data_par = data_par)
@@ -138,8 +205,37 @@ find_prior_par <- function(n_exp, mean_exp, s2_exp, belief, data_par = NULL) {
   return(out_par)
 }
 
-find_multiple_prior_par <- function(data_exp, n_exp, mean_exp, s2_exp, belief, #prior_exp_name = NULL,
-                     data_par = NULL) {
+find_multiple_prior_par <- function(data_exp, n_exp, mean_exp, s2_exp, belief, data_par = NULL) {
+  
+  #' @title Find prior parameters with multiple experiments
+  #' @description Wrapper function to find_prior_par(). 
+  #' This function iterates the action of find_prior_par() by performing sequentially
+  #' the same operation for all added experiments. Specifically, the posterior parameters
+  #' calculated after experiment 1 will become the prior parameters of experiment 2.
+  #' The posterior parameters calculated after experiment 2 will become the prior parameters
+  #' of experiment 3 - and so forth. The results are independent of the order in which the
+  #' experiments are added. 
+  #' It takes data organized in a dataset with the following information: sample size,
+  #' mean, variance, degree of similarity.
+  #' 
+  #' 
+  #' @param data_exp Name of the dataset.
+  #' @param n_exp Variable of dataset containing sample size of the group of interest.
+  #' @param mean_exp Variable of dataset containing mean of the group of interest.
+  #' @param s2_exp Variable of dataset containing variance of the group of interest.
+  #' @param belief Variable of dataset containing degree of similarity with the currently conducted experiment. 
+  #' It must be a number between 0 and 1.
+  #' @param data_par Parameters to be used instead of a uninformative prior. 
+  #' data_par must have the same structure as find_post_par output. 
+  #' @return Table with posterior paramenters. mu0 = prior mu, 
+  #' k0 and v0 = degrees of freedom, sigma0_2 = prior variance, 
+  #' n0_cor = weight of the experiment based on prior sample size and 
+  #' degree of similarity). Each row corresponds to variation in prior parameters
+  #' as a new experiment is added in the iterative process. The last row corresponds
+  #' to the prior parameters when all provided experiments are added.
+  
+  
+  
   
   # Checks
   ##
@@ -168,7 +264,18 @@ find_multiple_prior_par <- function(data_exp, n_exp, mean_exp, s2_exp, belief, #
 
 sample_post <- function(data_par, n_sampled = 10000) {
   
-
+  
+  #' @title Sample values from posterior distribution
+  #' @description This function can be used to sample values from the distribution
+  #' provided. The distribution is defined by parameters, which can be calculated
+  #' with the function find_post_par(). It follows Gelman's equations (1995, section 3.3 and 3.4).
+  #' 
+  #' 
+  #' @param data_exp Output of find_post_par() function. It contains the parameters of
+  #' the distribution from which to sample.
+  #' @param n_sampled Number of values to sample. Default is 10000.
+  #' @return String with n values (specified by n_sampled) following the given distribution.
+  
   ## Prior parameters
   my_post_par <- c("mu1", "k1", "v1", "sigma1_2")
   
@@ -233,20 +340,4 @@ my_bad <- "#f0d9d0"
 my_good <- "#d0f0da"
 my_bin <- 50
 my_bin_width <- my_bin / 5000
-# colours from package viridis
-# organization plots with ggpubr
 
-# 
-# gtable_select <- function (x, ...) 
-# {
-#   matches <- c(...)
-#   x$layout <- x$layout[matches, , drop = FALSE]
-#   x$grobs <- x$grobs[matches]
-#   x
-# }
-# gtable_stack <- function(g1, g2){
-#   g1$grobs <- c(g1$grobs, g2$grobs)
-#   g1$layout <- rbind(g1$layout, g2$layout)
-#   g1
-# }
-# 

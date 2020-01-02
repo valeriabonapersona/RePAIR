@@ -16,7 +16,7 @@ rm(list = ls())
 ## from CRAN
 list_cran_packages <- c(
   "tidyverse", "readxl", # data handling
-  "assertive", # functions
+  "assertive", "docstring", # functions
   "pwr", "metafor", # for statistics
   "ggpubr", "viridis", "grid", "gtable" # graphs
 )
