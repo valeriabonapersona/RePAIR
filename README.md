@@ -1,9 +1,11 @@
-[![DOI](https://osf.io/wvs7m/)](10.17605/OSF.IO/WVS7M)
-Version 0.1.0 (ADD BADGE)
+# RePAIR
+**DOI:** [10.17605/OSF.IO/WVS7M](https://osf.io/wvs7m/)
+<br>
+**Version:** 0.1.0
 
-
+<br>
 <p align="center">
-  <img src="figures/other/logo_readme.png" width="600"/>
+  <img src="results/figures/other/logo_readme.png" width="600"/>
 </p>
 
 
@@ -86,7 +88,7 @@ The following R **base** packages were used:
 
 The **additional** R packages used were:
 
-* [tidyverse, v1.3.0](https://www.tidyverse.org/)
+* [tidyverse, v 1.3.0](https://www.tidyverse.org/)
 * [osfr, v 0.2.6.2](https://github.com/CenterForOpenScience/osfr)
 * [readxl, v 1.3.1](https://cran.r-project.org/web/packages/readxl/index.html)
 * [assertive, v 0.3-5](https://cran.r-project.org/web/packages/assertive/index.html)
