@@ -9,14 +9,14 @@
 ## Last update: Oct. 28th, 2019
 
 # Environment -------------------------------------------------------------
-source("RePAIR_functions.R")
+source("src/RePAIR_functions.R")
 
 # make sure you have downloaded relevant datasets!
 # see download_data.R 
 
 # Import datasets ---------------------------------------------------------
-dat <- read.csv("meta_n.csv") # corresponds to "Data A" in manuscript (Fig. S1)
-meta <- read.csv("meta_effectsize.csv") # corresponds to "Data B" in manuscript (Fig. S2)
+dat <- read.csv(paste0(path_data,"meta_n.csv")) # corresponds to "Data A" in manuscript (Fig. S1)
+meta <- read.csv(paste0(path_data, "meta_effectsize.csv")) # corresponds to "Data B" in manuscript (Fig. S2)
 
 
 # Achieved power (Fig. 1-A, Fig. S2) ----------------------------------------------------------
@@ -25,7 +25,7 @@ power <- pwr.t2n.test(n1 = meta$n_1, n2 = meta$n_2,
                       d = meta$yi, sig.level = .05)
 meta$power <- power$power
 pow_ach_text <- paste0("Median: ", round(median(meta$power) * 100),"%")
-saveRDS(pow_ach_text, "figures/power_achieved_text.rds")
+saveRDS(pow_ach_text, paste0(path_fig_inter, "power_achieved_text.rds"))
 
 # Visualization
 pow_ach <- 
@@ -43,17 +43,17 @@ pow_ach <-
 ## Main text (Fig. 1-A)
 pow_ach_main <- pow_ach +  
   annotate("text", x=0.25, y=500, label=pow_ach_text, color = my_watergreen, fontface = "bold", hjust = 0)
-saveRDS(pow_ach_main, "figures/power_achieved.rds")
+saveRDS(pow_ach_main, paste0(path_fig_inter, "power_achieved.rds"))
 
 ## Supplementary (Fig. S2)
 pow_ach_fields <- pow_ach + 
   facet_grid(~study)
-saveRDS(pow_ach_fields, "figures/supp_power_achieved_fields.rds")
+saveRDS(pow_ach_fields, paste0(path_fig_inter, "supp_power_achieved_fields.rds"))
 
 # Animals used (Fig. 1-B) -----------------------------------------------------------
 median(dat$n_t)
 total_n_text <- paste0("Median ", median(dat$n_t)/2,"/group")
-saveRDS(total_n_text, "figures/total_n_text.rds")
+saveRDS(total_n_text, paste0(path_fig_inter, "total_n_text.rds"))
 
 total_n <- ggplot(dat, aes(x = n_t, fill = TRUE)) +
   geom_histogram(colour = "black", bins = my_bin) +
@@ -67,7 +67,7 @@ total_n <- ggplot(dat, aes(x = n_t, fill = TRUE)) +
   my_theme + std_fill + 
   theme(legend.position = "none")
 
-saveRDS(total_n, file = "figures/total_n.rds")
+saveRDS(total_n, file = paste0(path_fig_inter, "total_n.rds"))
 
 
 # Estimation effect size range --------------------------------------------
@@ -88,7 +88,7 @@ effect_sizes <-
   std_fill +
   theme(legend.position = "none")
 
-saveRDS(effect_sizes, "figures/supp_effect_size_range.rds")
+saveRDS(effect_sizes, paste0(path_fig_inter, "supp_effect_size_range.rds"))
 
 
 # Theoretical power with prior --------------------------------------------
@@ -135,7 +135,7 @@ densMax <- dat_theor %>%
   group_by(eff_size) %>%
   summarise(dens = max(density(theor_pow)[["y"]])) %>%
   filter(dens == max(dens))
-saveRDS(densMax, file = "figures/Fig01_densMax.rds")
+saveRDS(densMax, file = paste0(path_fig_inter, "Fig01_densMax.rds"))
 
 # Find maximum value of bin count
 countMax <- dat_theor %>% 
@@ -147,7 +147,7 @@ countMax <- dat_theor %>%
   summarise(count=n()) %>% 
   ungroup() %>% filter(count==max(count))
 
-saveRDS(countMax, file = "figures/Fig01_countMax.rds")
+saveRDS(countMax, file = paste0(path_fig_inter, "Fig01_countMax.rds"))
 
 for (each in levels(factor(dat_theor$prior_type))) {
   
@@ -199,7 +199,7 @@ for (each in levels(factor(dat_theor$prior_type))) {
       
 
 # Save
- saveRDS(my_graph, file = paste0("figures/theor_pow_", each,".rds"))
+ saveRDS(my_graph, file = paste0(path_fig_inter, "theor_pow_", each,".rds"))
   
 
 }
