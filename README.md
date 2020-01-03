@@ -15,6 +15,7 @@
 **R**eduction by **P**rior **A**nimal **I**nformed **R**esearch (*RePAIR*) is a statistical tool to limit the number of animals to conduct well-powered research. This github project accompanies the homonymous manuscript, which can be downloaded at [this link](https://www.biorxiv.org/content/10.1101/864652v1). 
 
 <br>
+
 For an **interactive** use of RePAIR, see our [shiny app](https://vbonapersona.shinyapps.io/repair_app_submit/).
 
 <br> 
@@ -50,8 +51,11 @@ To get started:
 * run the *download_data.R* to download data directly from the openscience framework. 
 
 <br>
+
 **Attention:** 
+
 <br>
+
 The **package osfr** here used to download data directly from the [repository](https://osf.io/) is currently being developed. If automatic download does not work, copy the data files found at [this link](https://osf.io/wvs7m/) to the *data/raw/* folder in your directory. The files names are: 
 
 * meta_effectsize.csv
@@ -71,7 +75,7 @@ The analysis is coded in 6 different R scripts:
 * **RePAIR_sensitivity.R**: sensitivity simulation to validate the robustity of RePAIR. It outputs a csv file with the output of the sensitivity simulation study, as well as a graph for its visualization (Supplementary Figure 5 of the manuscript). <u> Attention:</u> it requires the output of RePAIR_prior.R. Therefore, **run *RePAIR_prior.R* first**. 
 * **RePAIR_relacs.R**: tryout of RePAIR on a real life dataset (RELACS). It outputs Figure 2B as well as well as other supplementary information. 
 
-The code for the final visualization of the figures as presented in the manuscript is **main_figures.R**. <u>Attention:</u> this script sources outputs of other scripts. Therefore, the related figure outputs need to be present at the required locations. 
+The code for the final visualization of the figures as presented in the manuscript is **main_figures.R**. *Attention:* this script sources outputs of other scripts. Therefore, the related figure outputs need to be present at the required locations. 
 
 <br>
 
@@ -111,7 +115,7 @@ Nothing so far!
 <br>
 
 ## License
-This project is licensed under the terms of the [MIT License](/LICENSE.md)
+This project is licensed under the terms of the [MIT License](/LICENSE.md).
 
 <br>
 
