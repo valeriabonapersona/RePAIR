@@ -9,7 +9,7 @@
 ## Last update: Oct. 28th, 2019
 
 # Environment -------------------------------------------------------------
-source("RePAIR_functions.R")
+source("src/RePAIR_functions.R")
 
 # N for power 0.8 ----------------------------------------------------
 # factors varying in the simulation are explained in Table S2 of the manuscript
@@ -43,7 +43,7 @@ dat[, c("mean_c", "mean_e", "s2_c", "s2_e", "repair_pow")] <- NA
 #simulation
 ## ATTENTION: it takes a few hours (best overnight)
 ## for a quick look, change n_sim to 10 and n_sam to 1000
-n_sim <- 10000 # datasets simulated
+n_sim <- 10 # datasets simulated
 n_sam <- 10000 # samples drawn
 
 for (i in c(1:nrow(dat))) {
@@ -113,8 +113,11 @@ for (i in c(1:nrow(dat))) {
   
 }
 
-#write.csv(dat, file = "sim_prior.csv")
-#dat <- read.csv("sim_prior.csv")
+## Save results simulation
+#write.csv(dat, file = paste0(path_data_final,"sim_prior.csv"))
+
+## Reupload results simulation (if new session)
+#dat <- read.csv(paste0(path_data_final, "sim_prior.csv"))
 
 # Visualization RePAIR ----------------------------------------------------
 dat$my_x_cat <- ifelse(dat$n_prior == 0, "No prior", "With RePAIR")
@@ -194,5 +197,5 @@ gt_repair$heights[9] <- unit(30, "pt")
 
 grid.draw(gt_repair)
 
-saveRDS(gt_repair, file = "figures/gt_repair.rds")
+saveRDS(gt_repair, file = paste0(path_fig_inter, "gt_repair.rds"))
 

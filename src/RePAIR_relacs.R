@@ -9,14 +9,14 @@
 ## Last update: Oct. 28th, 2019
 
 # Environment -------------------------------------------------------------
-source("RePAIR_functions.R")
+source("src/RePAIR_functions.R")
 set.seed(1238)
 
 # Import datasets ---------------------------------------------------------
-dat <- read.csv("RELACS_anonymized_blinded.csv") # for criteria, see Table S3
+dat <- read.csv(paste0(path_data, "RELACS_anonymized_blinded.csv")) # for criteria, see Table S3
 dat <- dat %>% select(-contains("X"))
 
-prior <- read.csv("RELACS_prior_control_literature.csv")
+prior <- read.csv(paste0(path_data, "RELACS_prior_control_literature.csv"))
 prior$sd <- prior$sem * sqrt(prior$N)
 prior$var <- prior$sd^2
 
@@ -179,20 +179,20 @@ levels(post_graph$prior) <- c("t-test", "no prior", "prior from relacs",
                               "literature prior RePAIR")
 
 my_num_exp <- paste0("Nexp=", dat_an$e_n)
-saveRDS(my_num_exp, "figures/my_num_exp.RDS")
+saveRDS(my_num_exp, paste0(path_fig_inter, "my_num_exp.RDS"))
 
 my_num_con <- c(paste0("Ncon=", dat_an$c_n),
                 paste0("Ncon=", dat_sel[dat_sel$sel == FALSE,]$n),
                 paste0("Ncon=", dat_sel[dat_sel$sel == FALSE,]$n),
                 paste0("Ncon=", dat_sel[dat_sel$sel == FALSE,]$n)
                 )
-saveRDS(my_num_con, "figures/my_num_con.RDS")
+saveRDS(my_num_con, paste0(path_fig_inter, "my_num_con.RDS"))
 
 my_num_prior <- c(rep("Nprior=0", 2), 
                   paste0("Nprior=", dat_sel[dat_sel$sel == TRUE,]$n),
                   paste0("Nprior=", sum(prior$N * prior$belief_02))
                   )
-saveRDS(my_num_prior, "figures/my_num_prior.RDS")
+saveRDS(my_num_prior, paste0(path_fig_inter, "my_num_prior.RDS"))
 
  
 post_graph %>%
@@ -201,7 +201,7 @@ post_graph %>%
   summarize(high = quantile(post, probs = 0.975), 
             low  = quantile(post, probs = 0.025)) -> diff_quant
 
-saveRDS(diff_quant, "figures/diff_quant.RDS")
+saveRDS(diff_quant, paste0(path_fig_inter, "diff_quant.RDS"))
 
 
 post_graph %>%
@@ -242,7 +242,7 @@ post_graph %>%
   guides(colour = FALSE, 
          fill = guide_legend(direction = "vertical")) -> res_rep_rel # Fig. 2-B
 
-saveRDS(res_rep_rel, "figures/repair_results.rds")
+saveRDS(res_rep_rel, paste0(path_fig_inter, "repair_results.rds"))
 
 
 # Priors and prospective power - Table S5 --------------------------------------------
@@ -292,4 +292,4 @@ for (lev in levels(prior_type$type)) {
 
 print(paste("The median prospective power for each experiment in the RELACS dataset is", median(dat_group_sum$no_prior)))
 
-write.csv(dat_group_sum, file = "power_relacs.csv")
+write.csv(dat_group_sum, file = paste0(path_other_output, "power_relacs.csv"))
