@@ -27,17 +27,16 @@ For an **interactive** use of RePAIR, see our [shiny app](https://vbonapersona.s
 ├── LICENSE.md
 ├── README.md
 ├── data                  <- All project data, ignored by git.
-│   ├── processed         <- The final, canonical data sets used for analyses. 
+│   ├── final             <- The final, canonical data sets used for analyses. 
 │   ├── raw               <- The original data, directly downloaded from the repository. 
-│   └── temp              <- Intermediate data that has been transformed.
+│   └── temp              <- Intermediate data.
 ├── results
 │   ├── figures           <- Figures for the manuscript or reports.
 │       ├── intermediate  <- Intermediate visualizations and data for final figures. 
 │       ├── final         <- The final visualizations as present in the manuscript.
-│       ├── supplementary <- The final visualizations of manuscript's supplementary material.
 │       └── other         <- Other figures unrelated to the analysis.
-│   └── output         <- Other output for the manuscript or reports.
-└── src                <- Source code for this project. 
+│   └── output            <- Other output for the manuscript or reports.
+└── src                   <- Source code for this project. 
 
 
 ```
@@ -65,10 +64,11 @@ The analysis is coded in 6 different R scripts:
 * **RePAIR_functions.R**: sourced by all other R scripts, it contains libraries, functions, paths and other general variables (e.g. color codes)
 * **power_literature.R**: descriptive analysis and estimation of statistical power in preclinical literature. It outputs all relevant information for Figure 1 and 2C of the manuscript, as well as several supplementary figures.
 * **RePAIR_simulation.R**: script of the simulation study to study the relationship between between prior, sample size and prospective statistical power. It outputs a .csv file containing the output of the simulation, and a graph for its visualization (Figure 2A of the manuscript). 
-* **RePAIR_sensitivity.R**: sensitivity simulation to validate the robustity of RePAIR. It outputs a csv file with the output of the sensitivity simulation study, as well as a graph for its visualization (Supplementary Figure 5 of the manuscript).
 * **RePAIR_prior.R**: analysis of the prior literature selected to gather information for the sensitivity analysis (conducted with script *RePAIR_sensitivity.R*).
+* **RePAIR_sensitivity.R**: sensitivity simulation to validate the robustity of RePAIR. It outputs a csv file with the output of the sensitivity simulation study, as well as a graph for its visualization (Supplementary Figure 5 of the manuscript). <u> Attention:</u> it requires the output of RePAIR_prior.R. Therefore, **run RePAIR_prior.R first**. 
 * **RePAIR_relacs.R**: tryout of RePAIR on a real life dataset (RELACS). It outputs Figure 2B as well as well as other supplementary information. 
 
+The code for the final visualization of the figures as presented in the manuscript is **main_figures.R**. <u>Attention:</u> this script sources outputs of other scripts. Therefore, the related figure outputs need to be present at the required locations. 
 
 ## Requirements
 The scripts here reported were written in R version 3.6.0, running under macOS Mojave 10.14.6.
@@ -101,7 +101,6 @@ The **additional** R packages used were:
 
 ## Known bugs
 Nothing so far!
-
 
 ## License
 This project is licensed under the terms of the [MIT License](/LICENSE.md)
