@@ -10,12 +10,12 @@
 
 
 # Environment -------------------------------------------------------------
-source("RePAIR_functions.R")
+source("src/RePAIR_functions.R")
 set.seed(8709)
 
 # Datasets ----------------------------------------------------------------
-limits <- read.csv("limits_means.csv") # from RePAIR_prior.R
-sens <- read.csv("sim_prior.csv") # from RePAIR_simulation.R
+limits <- read.csv(paste0(path_data_temp, "limits_means.csv")) # from RePAIR_prior.R
+sens <- read.csv(paste0(path_data_final, "sim_prior.csv")) # from RePAIR_simulation.R
 
 
 # Sensitivity -------------------------------------------------------------
@@ -123,14 +123,13 @@ for (i in c(1:nrow(sens))) {
   }
   
   sens[i,]$repair_pow_sens <- n_sim - sum(contains_zero)
-  x <- sens$repair_pow_sens
-  write.csv(x, file = "check_sens.csv")
+
   
 }
 
 
-#write.csv(sens, file = "sim_sensitivity.csv")
-sens <- read.csv("sim_sensitivity.csv")
+#write.csv(sens, file = paste0(path_data_final, "sim_sensitivity.csv"))
+sens <- read.csv(paste0(path_data_final, "sim_sensitivity.csv"))
 
 
 
@@ -188,4 +187,4 @@ gt_sensit$widths[6] <- unit(30,"pt")
 
 grid.draw(gt_sensit)
 
-#saveRDS(gt_sensit, file = "figures/sensitivity.rds")
+saveRDS(gt_sensit, file = paste0(path_fig_inter, "sensitivity.rds"))

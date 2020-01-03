@@ -9,15 +9,15 @@
 ## Last update: Oct. 28th, 2019
 
 # Environment -------------------------------------------------------------
-source("RePAIR_functions.R")
+source("src/RePAIR_functions.R")
 set.seed(8709)
 
 ## first download datasets with download_data.R
 
 # Import datasets ---------------------------------------------------------
-relacs <- read.csv("RELACS_anonymized_blinded.csv") # criteria: adult males OL task, >1h retention (both short and long), controls >50%, novel_exp >0
+relacs <- read.csv(paste0(path_data, "RELACS_anonymized_blinded.csv")) # criteria: adult males OL task, >1h retention (both short and long), controls >50%, novel_exp >0
 relacs <- relacs %>% select(-contains("X"))
-prior <- read.csv("RELACS_prior_control_literature.csv")
+prior <- read.csv(paste0(path_data, "RELACS_prior_control_literature.csv"))
 
 # Preparation datasets
 prior$sd <- prior$sem * sqrt(prior$N)
@@ -65,7 +65,7 @@ pop_control <-
   theme(legend.position = "none")
   
 
-saveRDS(pop_control, file = "figures/pop_control.rds")
+saveRDS(pop_control, file = paste0(path_fig_inter, "pop_control.rds"))
 
 
 # Simulation estimation pop mean ------------------------------------------
@@ -82,8 +82,11 @@ for (many in c(1:nrow(sim_means))) {
 
 }
 
-write.csv(sim_means, "sim_means_controls.csv")
-sim_means <- read.csv("sim_means_controls.csv")
+# Save
+#write.csv(sim_means, paste0(path_data_temp, "sim_means_controls.csv"))
+
+# Reupload results (if for later session)
+#sim_means <- read.csv(paste0(path_data_temp,"sim_means_controls.csv"))
 
 
 ## variation mean by number of papers selected - Fig. S4-B
@@ -108,7 +111,7 @@ sim_means_quant %>%
   xlab(expression(paste("Variation from ", mu["con"], italic(" (Hedge's G)")))) +
   ylab("Number of studies sampled") -> sensitivity
 
-saveRDS(sensitivity, file = "pop_means_variation.rds") # Fig S4-B
+saveRDS(sensitivity, file = paste0(path_fig_inter, "pop_means_variation.rds")) # Fig S4-B
 
 
 ## variation mean by N selected (by selecting papers)
@@ -139,7 +142,7 @@ sim_means_quant %>%
   spread(key = type, value = quant_round) %>%
   mutate(number_anim = number * 10) -> limits_means
 
-write.csv(limits_means, "limits_means.csv")
+write.csv(limits_means, paste0(path_data_temp, "limits_means.csv"))
 
 
 # Fig. S4-C
@@ -163,4 +166,4 @@ ex_dist <-
           axis.text.y=element_blank(),
         #  axis.ticks.x=element_blank(),
           axis.ticks.y=element_blank())
-saveRDS(ex_dist, file = "figures/ex_distr.rds")
+saveRDS(ex_dist, file = paste0(path_fig_inter, "ex_distr.rds"))
