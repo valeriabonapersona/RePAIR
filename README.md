@@ -52,7 +52,7 @@ To get started:
 <br>
 **Attention:** 
 <br>
-The **package osfr** here used to download data directly from the [repository](http/:osf.io) is currently being developed. If automatic download does not work, copy the data files found at [this link](https://osf.io/wvs7m/) to the *data/raw/* folder in your directory. The files names are: 
+The **package osfr** here used to download data directly from the [repository](https://osf.io/) is currently being developed. If automatic download does not work, copy the data files found at [this link](https://osf.io/wvs7m/) to the *data/raw/* folder in your directory. The files names are: 
 
 * meta_effectsize.csv
 * meta_n.csv
