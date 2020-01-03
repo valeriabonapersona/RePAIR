@@ -27,7 +27,9 @@ lapply(my_library, library, character.only = TRUE)
 
 # Paths -------------------------------------------------------------------
 path_data <- "data/raw/"
-
+path_fig_inter <- "figures/intermediate/"
+path_fig_final <- "figures/final/"
+path_fig_suppl <- "figures/supplementary/"
 
 # Power calculation-related functions -----------------------------------------------
 # outputs n smallest group (control)
