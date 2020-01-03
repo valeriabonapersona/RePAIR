@@ -16,10 +16,12 @@ rm(list = ls())
 ## from CRAN
 list_cran_packages <- c(
   "tidyverse", "readxl", # data handling
+  "remotes", # download from github
   "assertive", "docstring", # functions
   "pwr", "metafor", # for statistics
   "ggpubr", "viridis", "grid", "gtable" # graphs
 )
+
 
 new_packages <- list_cran_packages[!(list_cran_packages %in% installed.packages()[,"Package"])]
 if(length(new_packages)) install.packages(new_packages)
@@ -28,6 +30,6 @@ if(length(new_packages)) install.packages(new_packages)
 if(!require(osfr)) remotes::install_github("centerforopenscience/osfr")
 
 
-
-
+# Packrat for dependenies ------------------------------------------------
+#packrat::init("src/")
 
