@@ -15,6 +15,8 @@ rm(list = ls())
 # Install packages
 ## from CRAN
 list_cran_packages <- c(
+  "readxl", # data handling
+  "assertive", "docstring", # functions
   "tidyverse", "readxl", # data handling
   "remotes", # download from github
   "assertive", "docstring", # functions

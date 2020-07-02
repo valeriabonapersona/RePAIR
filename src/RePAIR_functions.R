@@ -11,19 +11,7 @@
 
 
 # Environment preparation -------------------------------------------------
-rm(list = ls())
-
-# Library
-my_library <- c(
-  "osfr", "readxl", # data handling
-  "assertive", "docstring", # functions
-  "pwr", "metafor", # for statistics
-  "ggpubr", "viridis", "grid", "gtable" # graphs,
-  )
-
-library(tidyverse)
-lapply(my_library, library, character.only = TRUE)
-
+source("src/dependencies.R")
 
 # Paths -------------------------------------------------------------------
 path_data <- "data/raw/"
