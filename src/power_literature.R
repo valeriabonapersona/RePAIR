@@ -19,13 +19,32 @@ dat <- read.csv(paste0(path_data,"meta_n.csv")) # corresponds to "Data A" in man
 meta <- read.csv(paste0(path_data, "meta_effectsize.csv")) # corresponds to "Data B" in manuscript (Fig. S2)
 
 
-# Achieved power (Fig. 1-A, Fig. S2) ----------------------------------------------------------
+# Achieved power (Fig. 1a) ----------------------------------------------------------
 # Calculate power achieved for each effect size
+## all studies
 power <- pwr.t2n.test(n1 = meta$n_1, n2 = meta$n_2, 
                       d = meta$yi, sig.level = .05)
 meta$power <- power$power
 pow_ach_text <- paste0("Median: ", round(median(meta$power) * 100),"%")
 saveRDS(pow_ach_text, paste0(path_fig_inter, "power_achieved_text.rds"))
+
+## neuroscience and metabolism separately
+# create function
+get_median_power <- function(n_1, n_2, d) {
+  p <- pwr.t2n.test(n1 = n_1, n2 = n_2, 
+                    d = d, sig.level = .05)
+  return(round(median(p$power) * 100))
+}
+
+meta %>% 
+  
+  # group by the different fields
+  group_by(study) %>% 
+  
+  # summarize power
+  summarize(
+    median_achieved_power = paste0(get_median_power(n_1, n_2, yi), "%")
+  )
 
 # Visualization
 pow_ach <- 
@@ -43,38 +62,15 @@ pow_ach <-
 ## Main text (Fig. 1-A)
 pow_ach_main <- pow_ach +  
   annotate("text", x=0.25, y=500, label=pow_ach_text, color = my_watergreen, fontface = "bold", hjust = 0)
-saveRDS(pow_ach_main, paste0(path_fig_inter, "power_achieved.rds"))
-
-## Supplementary (Fig. S2)
-pow_ach_fields <- pow_ach + 
-  facet_grid(~study)
-saveRDS(pow_ach_fields, paste0(path_fig_inter, "supp_power_achieved_fields.rds"))
-
-# Animals used (Fig. 1-B) -----------------------------------------------------------
-median(dat$n_t)
-total_n_text <- paste0("Median ", median(dat$n_t)/2,"/group")
-saveRDS(total_n_text, paste0(path_fig_inter, "total_n_text.rds"))
-
-total_n <- ggplot(dat, aes(x = n_t, fill = TRUE)) +
-  geom_histogram(colour = "black", bins = my_bin) +
- # ylim(0,310) +
-  xlab(expression(paste("Animals used ", italic("(log scale)")))) + ylab("Number of publications") +
-  scale_x_continuous(trans = "log10",
-                     breaks = c(0,10,20,50,150,500)) +
-  geom_vline(xintercept = median(dat$n_t), color = my_watergreen, 
-             linetype = "dashed", size = 1.5) +
-  annotate("text", x=25, y=249, label=total_n_text, color = my_watergreen, fontface = "bold", hjust = 0) +
-  my_theme + std_fill + 
-  theme(legend.position = "none")
-
-saveRDS(total_n, file = paste0(path_fig_inter, "total_n.rds"))
+saveRDS(pow_ach_main, paste0(path_fig_inter, "Fig_1a_power_achieved.rds"))
 
 
-# Estimation effect size range --------------------------------------------
+
+# Estimation effect size range (Fig. 1b) --------------------------------------------
 # Range effect sizes
 all_es <- (floor(quantile(abs(meta$yi), probs = c(0.25,0.5,0.75))*10))/10
 
-# Visualization (Fig. S3)
+# Visualization
 effect_sizes <- 
   ggplot(meta, aes(x = abs(yi), fill = TRUE)) + 
   geom_histogram(colour = "black", bins = my_bin) +
@@ -88,10 +84,10 @@ effect_sizes <-
   std_fill +
   theme(legend.position = "none")
 
-saveRDS(effect_sizes, paste0(path_fig_inter, "supp_effect_size_range.rds"))
+saveRDS(effect_sizes, paste0(path_fig_inter, "Fig_1b_effect_size_range.rds"))
 
 
-# Theoretical power with prior --------------------------------------------
+# Theoretical power with prior (Fig. 1c) --------------------------------------------
 ## Preparation dataset
 # for each effect size
 dat_theor <- dat %>% 
@@ -102,7 +98,7 @@ dat_theor <- dat %>%
 priors <- c("no", # no prior
             "redi_1", # redistributed resources, index = 1
             "redi_03" # redistributed resources, index = 0l3
-            )
+)
 dat_theor <- dat_theor %>% 
   bind_rows(dat_theor, dat_theor) %>%
   mutate(prior_type = rep(priors, each = nrow(dat_theor))) %>%
@@ -110,7 +106,7 @@ dat_theor <- dat_theor %>%
                       n_t / 3 * 2, n_2)) %>%
   mutate(n_1 = ifelse(prior_type %in% c("redi_1", "redi_03"), 
                       n_t / 3, n_1)) %>%
- group_by(study, prior_type, eff_size) %>%
+  group_by(study, prior_type, eff_size) %>%
   mutate(
     prior_n = case_when(
       prior_type == "no" ~ 0,
@@ -120,7 +116,7 @@ dat_theor <- dat_theor %>%
   ) %>% 
   ungroup() %>%
   mutate(n_1_tot = n_1 + prior_n)
-  
+
 
 pow <- pwr.t2n.test(n1 = dat_theor$n_1_tot,
                     n2 = dat_theor$n_2,
@@ -159,48 +155,69 @@ for (each in levels(factor(dat_theor$prior_type))) {
               high_per = sum((theor_pow >= 0.8))/ nrow(dat) * 100) -> per_power
   
   my_graph <- dat_theor %>%
-      filter(prior_type == each) %>%
-      ggplot(aes(x = theor_pow, fill = factor(eff_size), 
-                 sf = countMax$count/densMax$dens)) + 
-        geom_rect(mapping=aes(xmin=0, xmax=0.5, ymin=0, ymax=Inf),
-                  fill= my_bad) +
-        geom_rect(mapping=aes(xmin=0.8, xmax=1, ymin=0, ymax=Inf),
-                  fill= my_good) +
-        geom_density(data = dat_theor[dat_theor$prior_type == "no",],
-                     aes(y = ..density.. * sf), fill = "grey", alpha = 0.5) +  
-        geom_histogram(colour = "black", binwidth = my_bin_width, position = "identity") +
-        
-        facet_grid(eff_size ~., scales = "free") +
+    filter(prior_type == each) %>%
+    ggplot(aes(x = theor_pow, fill = factor(eff_size), 
+               sf = countMax$count/densMax$dens)) + 
+    geom_rect(mapping=aes(xmin=0, xmax=0.5, ymin=0, ymax=Inf),
+              fill= my_bad) +
+    geom_rect(mapping=aes(xmin=0.8, xmax=1, ymin=0, ymax=Inf),
+              fill= my_good) +
+    geom_density(data = dat_theor[dat_theor$prior_type == "no",],
+                 aes(y = ..density.. * sf), fill = "grey", alpha = 0.5) +  
+    geom_histogram(colour = "black", binwidth = my_bin_width, position = "identity") +
     
-        scale_x_continuous(breaks = c(0,0.2,0.5,0.8,1.0), 
-                           labels = c("0%", "20%", "50%", "80%", "100%")) +
-        ylab("Number of publications") + 
-        xlab("Prospective power") + 
-        
-        geom_text(aes(x, y, label=lab, colour = "red"),
-                  data = data.frame(x = 0.9, y = Inf,
-                                    lab = paste0(round(per_power$high_per,1),"%"),
-                                    eff_size = all_es),vjust=1) +
-        geom_text(aes(x, y, label=lab, colour = "green"),
-                  data=data.frame(x=0.4, y=Inf,
-                                  lab = paste0(round(per_power$low_per,1),"%"),
-                                  eff_size = all_es),vjust=1) +
-        
-        my_theme + 
-        scale_fill_manual(values = c(my_yellow, my_watergreen, my_purple)) + 
-        labs(tag = "Hedge's G") +
-        theme(legend.position  = "none",
-              strip.background = element_rect(fill = NA),
-              strip.text = element_text(colour = "black", face = "bold"),
-              plot.tag.position = c(1.02, 0.535), 
-              plot.tag = element_text(angle = -90, size = 10),
-              plot.margin = unit(c(0.5,1,0.5,0.5), "cm")) +
-        coord_cartesian(clip = "off")
-      
-
-# Save
- saveRDS(my_graph, file = paste0(path_fig_inter, "theor_pow_", each,".rds"))
+    facet_grid(eff_size ~., scales = "free") +
+    
+    scale_x_continuous(breaks = c(0,0.2,0.5,0.8,1.0), 
+                       labels = c("0%", "20%", "50%", "80%", "100%")) +
+    ylab("Number of publications") + 
+    xlab("Prospective power") + 
+    
+    geom_text(aes(x, y, label=lab, colour = "red"),
+              data = data.frame(x = 0.9, y = Inf,
+                                lab = paste0(round(per_power$high_per,1),"%"),
+                                eff_size = all_es),vjust=1) +
+    geom_text(aes(x, y, label=lab, colour = "green"),
+              data=data.frame(x=0.4, y=Inf,
+                              lab = paste0(round(per_power$low_per,1),"%"),
+                              eff_size = all_es),vjust=1) +
+    
+    my_theme + 
+    scale_fill_manual(values = c(my_yellow, my_watergreen, my_purple)) + 
+    labs(tag = "Hedge's G") +
+    theme(legend.position  = "none",
+          strip.background = element_rect(fill = NA),
+          strip.text = element_text(colour = "black", face = "bold"),
+          plot.tag.position = c(1.02, 0.535), 
+          plot.tag = element_text(angle = -90, size = 10),
+          plot.margin = unit(c(0.5,1,0.5,0.5), "cm")) +
+    coord_cartesian(clip = "off")
   
-
+  
+  # Save
+  saveRDS(my_graph, file = paste0(path_fig_inter, "theor_pow_", each,".rds"))
+  
+  
 }
+
+
+
+# Animals used (Fig. 1d) -----------------------------------------------------------
+median(dat$n_t)
+total_n_text <- paste0("Median ", median(dat$n_t)/2,"/group")
+saveRDS(total_n_text, paste0(path_fig_inter, "total_n_text.rds"))
+
+total_n <- ggplot(dat, aes(x = n_t, fill = TRUE)) +
+  geom_histogram(colour = "black", bins = my_bin) +
+ # ylim(0,310) +
+  xlab(expression(paste("Animals used ", italic("(log scale)")))) + ylab("Number of publications") +
+  scale_x_continuous(trans = "log10",
+                     breaks = c(0,10,20,50,150,500)) +
+  geom_vline(xintercept = median(dat$n_t), color = my_watergreen, 
+             linetype = "dashed", size = 1.5) +
+  annotate("text", x=25, y=249, label=total_n_text, color = my_watergreen, fontface = "bold", hjust = 0) +
+  my_theme + std_fill + 
+  theme(legend.position = "none")
+
+saveRDS(total_n, file = paste0(path_fig_inter, "Fig_1d_total_n.rds"))
 
